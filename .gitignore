@@ -1,0 +1,12 @@
+# Godot 4 4.x specific ignores
+.godot/
+*.translation
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS / Temporary files
+*.tmp
+.DS_Store
+Thumbs.db
