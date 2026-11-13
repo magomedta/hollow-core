@@ -39,6 +39,14 @@ var brass_material: StandardMaterial3D
 
 # First-Person Arm holding Surveyor's Blueprint Projector
 var fp_builder_arm: Node3D
+var wall_tuck_blend: float = 0.0
+
+func set_wall_tuck(factor: float) -> void:
+	wall_tuck_blend = clamp(factor, 0.0, 1.0)
+	if fp_builder_arm:
+		var tuck_offset = Vector3(-0.04 * wall_tuck_blend, -0.06 * wall_tuck_blend, 0.22 * wall_tuck_blend)
+		fp_builder_arm.position = tuck_offset
+		fp_builder_arm.rotation_degrees = Vector3(16.0 * wall_tuck_blend, -12.0 * wall_tuck_blend, 8.0 * wall_tuck_blend)
 
 func _ready() -> void:
 	_init_materials()

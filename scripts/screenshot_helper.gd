@@ -2,77 +2,68 @@ extends Node
 
 var target_screenshots: Array = [
 	{
-		"name": "screen_cavern_vista.png",
-		"pos": Vector3(-30.5, 16.7, -9.5),
-		"rot": Vector3(-6.0, -80.0, 0.0),
+		"name": "ingame_01_outpost_hub.png",
+		"pos": Vector3(0.5, 11.2, 0.5),
+		"rot": Vector3(-4.0, -90.0, 0.0),
 		"lantern": true,
 		"slot": 1,
-		"phase": 1,
-		"desc": "Panoramic Cavern Vista from Expedition Outpost with Volumetric Fog, Diverse Rock Strata & Voxel Pillars"
+		"desc": "Starting Expedition Hub with Placed Scaffolding, Supplies & Lantern Light"
 	},
 	{
-		"name": "screen_diegetic_hud.png",
-		"pos": Vector3(-30.5, 16.7, -9.5),
-		"rot": Vector3(-6.0, -75.0, 0.0),
+		"name": "ingame_02_glacial_cryosphere.png",
+		"pos": Vector3(0.0, 52.0, 12.0),
+		"rot": Vector3(-5.0, 0.0, 0.0),
 		"lantern": true,
 		"slot": 1,
-		"phase": 1,
-		"desc": "Diegetic Anti-AI HUD with 8-slot Hotbar, Compass, Depth Gauge & Outpost Crates"
+		"desc": "Glacial Cryosphere (Y=52): Station Boreas Timber Outpost on Frozen Ice Shelf"
 	},
 	{
-		"name": "screen_lantern_darkness.png",
-		"pos": Vector3(0.0, 6.2, 8.0),
-		"rot": Vector3(-4.0, 180.0, 0.0),
+		"name": "ingame_03_fungal_mycena_hollows.png",
+		"pos": Vector3(0.0, 11.2, 33.0),
+		"rot": Vector3(-3.0, 180.0, 0.0),
 		"lantern": true,
 		"slot": 1,
-		"phase": 3,
-		"desc": "Dynamic Brass Lantern illuminating the Deep Voxel Cavern & Mineral Strata"
+		"desc": "Fungal Mycena Hollows (Z=33): Giant 3D Mushrooms, Hanging Spore Vines & Water Aquifer"
 	},
 	{
-		"name": "screen_lantern_off_abyss.png",
-		"pos": Vector3(0.0, 6.2, 8.0),
-		"rot": Vector3(-12.0, 180.0, 0.0),
-		"lantern": false,
-		"slot": 1,
-		"phase": 3,
-		"desc": "Pitch-Black Subterranean Darkness with Distant Bioluminescent Crystals and Glowing Ores"
-	},
-	{
-		"name": "screen_geologist_pickaxe.png",
-		"pos": Vector3(-30.5, 16.7, -9.5),
-		"rot": Vector3(-10.0, -75.0, 0.0),
-		"lantern": true,
-		"slot": 2,
-		"pick_tier": 3,
-		"phase": 2,
-		"desc": "First-Person Chiseled Steel Geologist Mattock Ready for Excavation"
-	},
-	{
-		"name": "screen_scaffold_building.png",
-		"pos": Vector3(-30.5, 16.7, -9.5),
-		"rot": Vector3(-6.0, -80.0, 0.0),
-		"lantern": true,
-		"slot": 3,
-		"phase": 2,
-		"desc": "Tactile First-Person Building Mode with Torch / Scaffold Placement Preview"
-	},
-	{
-		"name": "screen_precursor_ruins.png",
-		"pos": Vector3(20.0, 11.5, 0.0),
-		"rot": Vector3(-2.0, -90.0, 0.0),
+		"name": "ingame_04_amethyst_geode_cavity.png",
+		"pos": Vector3(0.0, 11.2, -33.0),
+		"rot": Vector3(-3.0, 0.0, 0.0),
 		"lantern": true,
 		"slot": 1,
-		"phase": 5,
-		"desc": "Ancient Precursor Archway Ruins Embedded in Deep Slate Strata"
+		"desc": "Amethyst Geode Realm (Z=-33): 3D Amethyst Spires, Floating Geode Core & Calcite Mantle"
 	},
 	{
-		"name": "screen_stalker_encounter.png",
-		"pos": Vector3(0.0, 6.2, 11.5),
-		"rot": Vector3(-4.0, 180.0, 0.0),
+		"name": "ingame_05_precursor_sanctuary.png",
+		"pos": Vector3(-31.0, 8.5, 0.0),
+		"rot": Vector3(6.0, 90.0, 0.0),
 		"lantern": true,
 		"slot": 1,
-		"phase": 4,
-		"desc": "Terrifying Encounter with Chasm Stalker with Chitin Armor & Glowing Bioluminescent Eyes"
+		"desc": "Precursor Sanctuary (X=-31): Giant Fossil Bone Ribs, Stepped Pyramid Dais & Conduits"
+	},
+	{
+		"name": "ingame_06_volcanic_magma_caldera.png",
+		"pos": Vector3(67.0, 8.2, 0.0),
+		"rot": Vector3(-4.0, -90.0, 0.0),
+		"lantern": true,
+		"slot": 1,
+		"desc": "Volcanic Magma Caldera (X=67): Stepped Basalt Pillars, Lava Lake & Sulfur Chimneys"
+	},
+	{
+		"name": "ingame_07_grand_cathedral_horror.png",
+		"pos": Vector3(35.0, 11.2, 5.0),
+		"rot": Vector3(6.0, -85.0, 0.0),
+		"lantern": true,
+		"slot": 1,
+		"desc": "Grand Cathedral Abyss (X=35): High-Chasm Natural Stone Bridge & Soaring Colonnades"
+	},
+	{
+		"name": "ingame_08_deep_bedrock_shaft.png",
+		"pos": Vector3(0.0, -18.0, 0.0),
+		"rot": Vector3(-25.0, -45.0, 0.0),
+		"lantern": true,
+		"slot": 1,
+		"desc": "Deep Abyssal Shaft (Y=-18): Excavation Scaffolding & Deepslate Trench"
 	}
 ]
 
@@ -84,6 +75,10 @@ var capture_state: int = 0
 var player: CharacterBody3D
 
 func _ready() -> void:
+	if not player:
+		player = get_tree().get_first_node_in_group("player") as CharacterBody3D
+		if not player:
+			player = get_node_or_null("../Player") as CharacterBody3D
 	var args = OS.get_cmdline_args()
 	for arg in args:
 		if arg == "--auto-capture":
@@ -98,6 +93,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			start_capture_sequence()
 
 func start_capture_sequence() -> void:
+	if not player:
+		player = get_tree().get_first_node_in_group("player") as CharacterBody3D
+		if not player:
+			player = get_node_or_null("../Player") as CharacterBody3D
 	is_capturing = true
 	shot_index = 0
 	capture_state = 1
@@ -151,7 +150,7 @@ func _process(_delta: float) -> void:
 						if player.lantern.has_signal("lantern_toggled"):
 							player.lantern.lantern_toggled.emit(shot["lantern"])
 
-			frame_counter = 25 # Settle time for volumetric fog accumulation & PBR lighting
+			frame_counter = 75 # Settle time for multi-threaded chunk meshing & lighting bounce
 			capture_state = 2
 
 		2:

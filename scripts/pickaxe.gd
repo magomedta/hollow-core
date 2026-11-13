@@ -21,10 +21,14 @@ var is_swinging: bool = false
 var swing_timer: float = 0.0
 var has_hit_in_current_swing: bool = false
 
-var natural_pos: Vector3 = Vector3(0.24, -0.20, -0.38)
-var natural_rot: Vector3 = Vector3(-12.0, 18.0, -6.0)
+var natural_pos: Vector3 = Vector3(0.24, -0.20, -0.40)
+var natural_rot: Vector3 = Vector3(-6.0, 22.0, -12.0)
 var current_sway_rot: Vector3 = Vector3.ZERO
 var target_sway_rot: Vector3 = Vector3.ZERO
+var wall_tuck_blend: float = 0.0
+
+func set_wall_tuck(factor: float) -> void:
+	wall_tuck_blend = clamp(factor, 0.0, 1.0)
 
 # Mesh references
 var model_root: Node3D
@@ -190,11 +194,45 @@ func _construct_geologist_mattock() -> void:
 	arm_root.add_child(thumb)
 
 	# 4. Pickaxe Haft & Head Assembly held firmly inside hand
-	var tool_mount = Node3D.new()
-	tool_mount.name = "ToolMount"
+	var tool_data = build_tool_mesh(tier)
+	var tool_mount = tool_data["root"]
 	tool_mount.position = Vector3(0.0, 0.0, -0.36)
 	tool_mount.rotation_degrees = Vector3(-40.0, -12.0, 0.0)
 	arm_root.add_child(tool_mount)
+
+	head_assembly = tool_data["head_assembly"]
+	center_eye = tool_data["center_eye"]
+	pick_beak = tool_data["pick_beak"]
+	adze_blade = tool_data["adze_blade"]
+
+## Builds the authentic geological pickaxe tool mesh hierarchy without arm/sleeve.
+## Shared across player viewmodel and world pickup props for 100% visual fidelity.
+static func build_tool_mesh(_p_tier: int = 1) -> Dictionary:
+	var tool_mount = Node3D.new()
+	tool_mount.name = "PickaxeToolMesh"
+
+	# 64x64 Stylized Materials
+	var hickory_mat = StandardMaterial3D.new()
+	hickory_mat.albedo_texture = PixelTextureGenerator.get_wood_plank_texture()
+	hickory_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	hickory_mat.roughness = 0.85
+
+	var worn_leather_mat = StandardMaterial3D.new()
+	worn_leather_mat.albedo_texture = PixelTextureGenerator.get_cuff_texture()
+	worn_leather_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	worn_leather_mat.roughness = 0.80
+
+	var forged_steel_mat = StandardMaterial3D.new()
+	forged_steel_mat.albedo_texture = PixelTextureGenerator.get_industrial_steel_texture()
+	forged_steel_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	forged_steel_mat.metallic = 0.85
+	forged_steel_mat.roughness = 0.45
+
+	var aged_brass_mat = StandardMaterial3D.new()
+	aged_brass_mat.albedo_texture = PixelTextureGenerator.get_lantern_brass_texture()
+	aged_brass_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	aged_brass_mat.metallic = 0.80
+	aged_brass_mat.roughness = 0.42
 
 	# Octagonal Hardwood Haft
 	var handle = MeshInstance3D.new()
@@ -232,10 +270,11 @@ func _construct_geologist_mattock() -> void:
 	pommel.position = Vector3(0, -0.19, 0)
 	tool_mount.add_child(pommel)
 
-	# 5. Forged Head Assembly
-	head_assembly = Node3D.new()
-	head_assembly.position = Vector3(0, 0.38, 0)
-	tool_mount.add_child(head_assembly)
+	# Forged Head Assembly
+	var h_assembly = Node3D.new()
+	h_assembly.name = "HeadAssembly"
+	h_assembly.position = Vector3(0, 0.38, 0)
+	tool_mount.add_child(h_assembly)
 
 	var collar = MeshInstance3D.new()
 	var col_cyl = CylinderMesh.new()
@@ -245,35 +284,54 @@ func _construct_geologist_mattock() -> void:
 	col_cyl.radial_segments = 8
 	collar.mesh = col_cyl
 	collar.material_override = aged_brass_mat
-	head_assembly.add_child(collar)
+	h_assembly.add_child(collar)
 
-	center_eye = MeshInstance3D.new()
+	var c_eye = MeshInstance3D.new()
 	var eye_box = BoxMesh.new()
 	eye_box.size = Vector3(0.046, 0.054, 0.075)
-	center_eye.mesh = eye_box
-	center_eye.material_override = forged_steel_mat
-	center_eye.position = Vector3(0, 0.005, 0)
-	head_assembly.add_child(center_eye)
+	c_eye.mesh = eye_box
+	c_eye.material_override = forged_steel_mat
+	c_eye.position = Vector3(0, 0.005, 0)
+	h_assembly.add_child(c_eye)
 
-	# Forward Digging Pick Beak - curved sharp forged steel pick point pointing DOWN and FORWARD into target (-Z)
-	pick_beak = MeshInstance3D.new()
+	# Forward Digging Pick Beak - curved sharp forged steel pick point
+	var p_beak = MeshInstance3D.new()
 	var p1_box = BoxMesh.new()
 	p1_box.size = Vector3(0.034, 0.038, 0.26)
-	pick_beak.mesh = p1_box
-	pick_beak.material_override = forged_steel_mat
-	pick_beak.position = Vector3(0, -0.015, -0.13)
-	pick_beak.rotation_degrees = Vector3(-14.0, 0, 0)
-	head_assembly.add_child(pick_beak)
+	p_beak.mesh = p1_box
+	p_beak.material_override = forged_steel_mat
+	p_beak.position = Vector3(0, -0.015, -0.13)
+	p_beak.rotation_degrees = Vector3(-14.0, 0, 0)
+	h_assembly.add_child(p_beak)
+
+	# Chisel point tip curving forward-down
+	var tip = MeshInstance3D.new()
+	var t_box = BoxMesh.new()
+	t_box.size = Vector3(0.022, 0.024, 0.12)
+	tip.mesh = t_box
+	tip.material_override = forged_steel_mat
+	tip.position = Vector3(0, -0.04, -0.22)
+	tip.rotation_degrees = Vector3(-24.0, 0, 0)
+	h_assembly.add_child(tip)
 
 	# Rear Flat Rock Adze / Counter-Weight Chisel pointing BACKWARD (+Z)
-	adze_blade = MeshInstance3D.new()
+	var a_blade = MeshInstance3D.new()
 	var ab_box = BoxMesh.new()
 	ab_box.size = Vector3(0.068, 0.020, 0.12)
-	adze_blade.mesh = ab_box
-	adze_blade.material_override = forged_steel_mat
-	adze_blade.position = Vector3(0, 0.002, 0.10)
-	adze_blade.rotation_degrees = Vector3(8.0, 0, 0)
-	head_assembly.add_child(adze_blade)
+	a_blade.mesh = ab_box
+	a_blade.material_override = forged_steel_mat
+	a_blade.position = Vector3(0, 0.002, 0.10)
+	a_blade.rotation_degrees = Vector3(8.0, 0, 0)
+	h_assembly.add_child(a_blade)
+
+	return {
+		"root": tool_mount,
+		"head_assembly": h_assembly,
+		"center_eye": c_eye,
+		"pick_beak": p_beak,
+		"tip": tip,
+		"adze_blade": a_blade
+	}
 
 func start_swing() -> bool:
 	if not is_active or is_swinging:
@@ -283,6 +341,14 @@ func start_swing() -> bool:
 	has_hit_in_current_swing = false
 	return true
 
+func get_effective_natural_pos() -> Vector3:
+	var tuck_offset = Vector3(-0.05 * wall_tuck_blend, -0.06 * wall_tuck_blend, 0.28 * wall_tuck_blend)
+	return natural_pos + tuck_offset
+
+func get_effective_natural_rot() -> Vector3:
+	var tuck_rot = Vector3(24.0 * wall_tuck_blend, -16.0 * wall_tuck_blend, 10.0 * wall_tuck_blend)
+	return natural_rot + tuck_rot
+
 func _process(delta: float) -> void:
 	if not is_active:
 		return
@@ -291,59 +357,68 @@ func _process(delta: float) -> void:
 	if not is_swinging and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		start_swing()
 
+	var eff_pos = get_effective_natural_pos()
+	var eff_rot = get_effective_natural_rot()
+
 	if is_swinging:
 		_process_swing(delta)
 	else:
 		current_sway_rot = current_sway_rot.lerp(target_sway_rot, delta * 8.0)
-		rotation_degrees = natural_rot + current_sway_rot
+		rotation_degrees = eff_rot + current_sway_rot
+		position = position.lerp(eff_pos, delta * 12.0)
 		target_sway_rot = target_sway_rot.lerp(Vector3.ZERO, delta * 6.0)
 
 func _process_swing(delta: float) -> void:
 	swing_timer += delta * swing_speed
 	var t = clamp(swing_timer, 0.0, 1.0)
+	var eff_pos = get_effective_natural_pos()
+	var eff_rot = get_effective_natural_rot()
 
-	var windup_pos = Vector3(0.04, 0.06, 0.06)
-	var windup_rot = Vector3(24.0, 8.0, 6.0)
+	# Ergonomic, punchy first-person pickaxe strike:
+	# 1. Wind-up raises tool back and right
+	var windup_pos = Vector3(0.06, 0.08, 0.08)
+	var windup_rot = Vector3(22.0, -12.0, 20.0)
 
-	var strike_pos = Vector3(-0.11, -0.13, -0.18) # Thrusts down, forward into screen center
-	var strike_rot = Vector3(-62.0, -22.0, -16.0) # Pitches forward (-X), rotates into rock face
+	# 2. Downward chopping arc drives the forged pick beak forward into center reticle
+	var strike_pos = Vector3(-0.16, 0.04, -0.16)
+	var strike_rot = Vector3(-26.0, 26.0, -28.0)
 
 	if t < 0.18:
-		# 1. Wind-up: cock tool back and up
+		# 1. Anticipation: cock pickaxe back and up
 		var p = t / 0.18
 		var ease_w = p * p
-		position = natural_pos + windup_pos * ease_w
-		rotation_degrees = natural_rot + windup_rot * ease_w
+		position = eff_pos + windup_pos * ease_w
+		rotation_degrees = eff_rot + windup_rot * ease_w
 	elif t < 0.48:
-		# 2. Downward & Forward Chop: forceful strike directly into rock
+		# 2. Powerful forward-downward chop plunging pick point into rock
 		var p = (t - 0.18) / 0.30
 		var ease_s = p * p * (3.0 - 2.0 * p)
-		position = natural_pos + windup_pos.lerp(strike_pos, ease_s)
-		rotation_degrees = natural_rot + windup_rot.lerp(strike_rot, ease_s)
+		position = eff_pos + windup_pos.lerp(strike_pos, ease_s)
+		rotation_degrees = eff_rot + windup_rot.lerp(strike_rot, ease_s)
 
 		if not has_hit_in_current_swing and p > 0.82:
 			has_hit_in_current_swing = true
 			_perform_mining_raycast()
 	elif t < 0.65:
-		# 3. Elastic Impact Shudder & Rebound off stone
+		# 3. Tactile impact rebound off dense mineral rock
 		var p = (t - 0.48) / 0.17
 		var shudder = sin(p * PI)
-		var bounce_p = strike_pos + Vector3(0.02, 0.04, 0.04) * shudder
-		var bounce_r = strike_rot + Vector3(12.0, 5.0, 3.0) * shudder
-		position = natural_pos + bounce_p
-		rotation_degrees = natural_rot + bounce_r
+		var bounce_p = strike_pos + Vector3(0.03, 0.04, 0.05) * shudder
+		var bounce_r = strike_rot + Vector3(10.0, -8.0, 8.0) * shudder
+		position = eff_pos + bounce_p
+		rotation_degrees = eff_rot + bounce_r
 	else:
-		# 4. Smooth ergonomic return to natural ready pose
+		# 4. Smooth ergonomic return to ready stance
 		var p = (t - 0.65) / 0.35
 		var ease_r = p * p * (3.0 - 2.0 * p)
-		position = natural_pos + strike_pos.lerp(Vector3.ZERO, ease_r)
-		rotation_degrees = natural_rot + strike_rot.lerp(Vector3.ZERO, ease_r)
+		position = eff_pos + strike_pos.lerp(Vector3.ZERO, ease_r)
+		rotation_degrees = eff_rot + strike_rot.lerp(Vector3.ZERO, ease_r)
 
 	if swing_timer >= 1.0:
 		is_swinging = false
 		swing_timer = 0.0
-		position = natural_pos
-		rotation_degrees = natural_rot
+		position = eff_pos
+		rotation_degrees = eff_rot
 
 func _perform_mining_raycast() -> void:
 	if player_camera == null:

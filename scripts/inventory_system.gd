@@ -6,6 +6,9 @@
 class_name InventorySystem
 extends CanvasLayer
 
+const PixelTextureGenerator = preload("res://scripts/pixel_texture_generator.gd")
+
+
 signal inventory_updated
 signal active_slot_changed(slot_idx: int)
 signal item_crafted(recipe_name: String)
@@ -155,8 +158,128 @@ const ITEM_REGISTRY = {
 		"max_stack": 64,
 		"block_type": 13,
 		"desc": "Subglacial permafrost ice harvested from the frigid upper surface caverns."
+	},
+	"canteen": {
+		"name": "Expedition Water Canteen",
+		"category": "SURVIVAL HYDRATION",
+		"max_stack": 1,
+		"block_type": 0,
+		"desc": "Sealed tin canteen. Restores 40% hydration when consumed with RMB."
+	},
+	"rations": {
+		"name": "High-Energy Field Rations",
+		"category": "SURVIVAL FOOD",
+		"max_stack": 16,
+		"block_type": 0,
+		"desc": "Dense nutrient survival rations. Restores 50% satiety when eaten with RMB."
+	},
+	"mushroom": {
+		"name": "Bioluminescent Glow-Cap",
+		"category": "SURVIVAL FOOD & WATER",
+		"max_stack": 32,
+		"block_type": 0,
+		"desc": "Edible glowing subterranean mushroom. Restores 35% satiety and 15% hydration."
+	},
+	"water": {
+		"name": "Fresh Spring Water",
+		"category": "SURVIVAL HYDRATION",
+		"max_stack": 16,
+		"block_type": 0,
+		"desc": "Pure crystal subterranean mineral water. Restores 40% hydration."
+	},
+	"lichen": {
+		"name": "Cave Lichen Root",
+		"category": "SURVIVAL FOOD",
+		"max_stack": 32,
+		"block_type": 0,
+		"desc": "Fibrous subterranean root. Restores 25% satiety."
+	},
+	"copper": {
+		"name": "Raw Copper Ore",
+		"category": "METALLIC RESOURCE",
+		"max_stack": 64,
+		"block_type": 9,
+		"desc": "Oxidized subterranean copper chunks."
+	},
+	"coal": {
+		"name": "Subterranean Coal",
+		"category": "FUEL & CARBON",
+		"max_stack": 64,
+		"block_type": 7,
+		"desc": "Lump of high-grade fossilized subterranean coal."
+	},
+	"journal": {
+		"name": "Surveyor's Field Notes",
+		"category": "LORE & ARCHIVES",
+		"max_stack": 1,
+		"block_type": 0,
+		"desc": "Expedition 104 field logs, geological survey data, and precursor transcriptions."
+	},
+	"flare": {
+		"name": "Signal Flare",
+		"category": "PYROTECHNICS & LIGHT",
+		"max_stack": 16,
+		"block_type": 0,
+		"desc": "High-intensity red magnesium flare. Illuminates vast chasms and scares away light-fearing predators."
+	},
+	"dynamite": {
+		"name": "Blasting Dynamite",
+		"category": "DEMOLITION & EXPLOSIVES",
+		"max_stack": 16,
+		"block_type": 0,
+		"desc": "Heavy nitro stick charge. Detonates with concussive force to blast through dense mineral veins."
+	},
+	"grappling_rope": {
+		"name": "Grappling Hook & Rope",
+		"category": "EXPEDITION GEAR",
+		"max_stack": 4,
+		"block_type": 0,
+		"desc": "Braided climbing cord with forged steel talons for scaling steep subterranean cliffs."
+	},
+	"obsidian_blade": {
+		"name": "Obsidian Dagger",
+		"category": "MELEE WEAPON",
+		"max_stack": 1,
+		"block_type": 0,
+		"desc": "Razor-sharp volcanic glass blade capable of inflicting lethal lacerations on monstrous predators."
+	},
+	"amethyst_shard": {
+		"name": "Amethyst Shard",
+		"category": "PRECIOUS CRYSTAL",
+		"max_stack": 64,
+		"block_type": 0,
+		"desc": "Glowing violet crystal resonating with subterranean energy. Highly valuable precursor catalyst."
+	},
+	"ancient_core": {
+		"name": "Precursor Relic Core",
+		"category": "ANCIENT ARTIFACT",
+		"max_stack": 8,
+		"block_type": 0,
+		"desc": "Mysterious geometric artifact pulsing with cyan light from the deepest subterranean sanctum."
+	},
+	"salve": {
+		"name": "Restorative Salve",
+		"category": "MEDICAL BALM",
+		"max_stack": 16,
+		"block_type": 0,
+		"desc": "Antiseptic balm distilled from bioluminescent mushrooms and mineral water (+50 Health)."
+	},
+	"sulfur_powder": {
+		"name": "Volcanic Sulfur Powder",
+		"category": "CHEMICAL REAGENT",
+		"max_stack": 64,
+		"block_type": 0,
+		"desc": "Pungent yellow mineral dust gathered from thermal caldera fissures. Vital for flares and explosives."
+	},
+	"slate_brick": {
+		"name": "Deepslate Masonry Brick",
+		"category": "ARCHITECTURAL MASONRY",
+		"max_stack": 64,
+		"block_type": 20,
+		"desc": "Precision-cut abyssal basalt bricks crafted by forgotten subterranean builders."
 	}
 }
+
 
 func _ready() -> void:
 	layer = 25
@@ -173,23 +296,26 @@ func _init_slots() -> void:
 	for i in range(TOTAL_SLOTS):
 		slots.push_back({})
 
+func set_slot(idx: int, id: String, count: int) -> void:
+	if idx >= 0 and idx < slots.size():
+		slots[idx] = {"id": id, "count": count}
+		_refresh_all_slots()
+		inventory_updated.emit()
+
 func _populate_starting_kit() -> void:
-	# Slot 0: Brass Lantern
-	slots[0] = {"id": "lantern", "count": 1}
-	# Slot 1: Prospector Pickaxe
-	slots[1] = {"id": "pickaxe", "count": 1}
-	# Slot 2: Carbide Torches (x16)
-	slots[2] = {"id": "torch", "count": 16}
-	# Slot 3: Hewn Timber (x12)
-	slots[3] = {"id": "timber", "count": 12}
-	# Slot 4: Cavern Cobblestone (x32)
-	slots[4] = {"id": "cobblestone", "count": 32}
-	# Slot 5: Wooden Planks (x16)
-	slots[5] = {"id": "planks", "count": 16}
-	# Slot 6: Calcite Crystals (x4)
-	slots[6] = {"id": "calcite", "count": 4}
-	# Slot 7: Phosphor Ore (x8)
-	slots[7] = {"id": "phosphor", "count": 8}
+	# Narrative Prologue Start:
+	# Survivor awakens in collapsed shaft with only emergency canteen & field journal.
+	# The Expedition Lantern & Prospector Pickaxe are recovered on-site via scripted tutorial.
+	# Building blocks, timber, and torches are salvaged by breaking supply crates.
+	slots[0] = {}
+	slots[1] = {}
+	slots[2] = {}
+	slots[3] = {}
+	slots[4] = {}
+	slots[5] = {"id": "canteen", "count": 1}
+	slots[6] = {}
+	slots[7] = {"id": "journal", "count": 1}
+
 
 func toggle() -> void:
 	set_open(not is_open)
@@ -212,16 +338,18 @@ func set_open(open_state: bool) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.is_pressed():
-		if event.keycode == KEY_E or event.keycode == KEY_TAB:
+		var code = event.physical_keycode if event.physical_keycode != 0 else event.keycode
+		if code == KEY_E or code == KEY_TAB or event.keycode == KEY_E or event.keycode == 1059: # 1059 = Cyrillic U (E key on RU layout)
 			toggle()
 			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_ESCAPE and is_open:
+		elif (code == KEY_ESCAPE or event.keycode == KEY_ESCAPE) and is_open:
 			set_open(false)
 			get_viewport().set_input_as_handled()
 		elif not is_open:
 			# Hotbar number keys 1 through 8
-			if event.keycode >= KEY_1 and event.keycode <= KEY_8:
-				var slot_idx = event.keycode - KEY_1
+			if (code >= KEY_1 and code <= KEY_8) or (event.keycode >= KEY_1 and event.keycode <= KEY_8):
+				var k = code if (code >= KEY_1 and code <= KEY_8) else event.keycode
+				var slot_idx = k - KEY_1
 				select_hotbar_slot(slot_idx)
 				get_viewport().set_input_as_handled()
 
@@ -254,6 +382,13 @@ func consume_active_item(amount: int = 1) -> bool:
 	inventory_updated.emit()
 	_refresh_all_slots()
 	return true
+
+func get_item_count(item_id: String) -> int:
+	var total = 0
+	for s in slots:
+		if not s.is_empty() and s.id == item_id:
+			total += s.count
+	return total
 
 func add_item(item_id: String, count: int = 1) -> int:
 	var reg = ITEM_REGISTRY.get(item_id, {})
@@ -301,32 +436,34 @@ func _build_ui() -> void:
 	root_panel = PanelContainer.new()
 	root_panel.name = "RootPanel"
 	root_panel.set_anchors_preset(Control.PRESET_CENTER)
-	root_panel.custom_minimum_size = Vector2(740, 520)
-	root_panel.position = Vector2(-370, -260)
+	root_panel.custom_minimum_size = Vector2(840, 710)
+	root_panel.position = Vector2(-420, -355)
 
 	var panel_style = StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.10, 0.11, 0.13, 0.96)
-	panel_style.border_color = Color(0.24, 0.28, 0.35, 1.0)
-	panel_style.border_width_left = 2
-	panel_style.border_width_right = 2
-	panel_style.border_width_top = 2
-	panel_style.border_width_bottom = 2
-	panel_style.corner_radius_top_left = 4
-	panel_style.corner_radius_top_right = 4
-	panel_style.corner_radius_bottom_left = 4
-	panel_style.corner_radius_bottom_right = 4
+	panel_style.bg_color = Color(0.06, 0.07, 0.09, 0.98)
+	panel_style.border_color = Color(0.82, 0.65, 0.32, 0.95)
+	panel_style.border_width_left = 3
+	panel_style.border_width_right = 3
+	panel_style.border_width_top = 3
+	panel_style.border_width_bottom = 3
+	panel_style.corner_radius_top_left = 6
+	panel_style.corner_radius_top_right = 6
+	panel_style.corner_radius_bottom_left = 6
+	panel_style.corner_radius_bottom_right = 6
+	panel_style.shadow_color = Color(0, 0, 0, 0.75)
+	panel_style.shadow_size = 28
 	root_panel.add_theme_stylebox_override("panel", panel_style)
 	bg.add_child(root_panel)
 
 	var main_vbox = VBoxContainer.new()
 	main_vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
-	main_vbox.add_theme_constant_override("separation", 14)
+	main_vbox.add_theme_constant_override("separation", 12)
 	root_panel.add_child(main_vbox)
 
 	# Header Bar
 	var header = HBoxContainer.new()
 	var title = Label.new()
-	title.text = "EXPEDITION BACKPACK & FIELD CRAFTING"
+	title.text = "EXPEDITION INVENTORY"
 	title.add_theme_color_override("font_color", Color(0.92, 0.78, 0.42))
 	title.add_theme_font_size_override("font_size", 16)
 	header.add_child(title)
@@ -336,7 +473,7 @@ func _build_ui() -> void:
 	header.add_child(spacer)
 
 	var close_btn = Button.new()
-	close_btn.text = " [X] ESC "
+	close_btn.text = " [ESC] "
 	close_btn.flat = true
 	close_btn.add_theme_color_override("font_color", Color(0.65, 0.70, 0.78))
 	close_btn.pressed.connect(func(): set_open(false))
@@ -350,9 +487,9 @@ func _build_ui() -> void:
 	# Left: 2x2 Field Crafting Box
 	var craft_box = VBoxContainer.new()
 	var craft_label = Label.new()
-	craft_label.text = "FIELD CRAFTING (2x2)"
+	craft_label.text = "FIELD WORKBENCH"
 	craft_label.add_theme_color_override("font_color", Color(0.70, 0.75, 0.82))
-	craft_label.add_theme_font_size_override("font_size", 12)
+	craft_label.add_theme_font_size_override("font_size", 11)
 	craft_box.add_child(craft_label)
 
 	var craft_inner = HBoxContainer.new()
@@ -379,26 +516,36 @@ func _build_ui() -> void:
 	craft_box.add_child(craft_inner)
 	craft_row.add_child(craft_box)
 
-	# Right: Quick Crafting Presets
+	# Right: Visual Icon-Based Quick Recipes
 	var quick_box = VBoxContainer.new()
 	var quick_label = Label.new()
-	quick_label.text = "EXPEDITION RECIPES (ONE-CLICK)"
+	quick_label.text = "QUICK FABRICATE"
 	quick_label.add_theme_color_override("font_color", Color(0.70, 0.75, 0.82))
-	quick_label.add_theme_font_size_override("font_size", 12)
+	quick_label.add_theme_font_size_override("font_size", 11)
 	quick_box.add_child(quick_label)
 
 	var recipes_hbox = HBoxContainer.new()
 	recipes_hbox.add_theme_constant_override("separation", 8)
 
-	var r1 = _create_recipe_button("TORCHES (x4)", "1 Timber + 1 Phosphor", func(): _craft_preset({"timber": 1, "phosphor": 1}, "torch", 4))
-	var r2 = _create_recipe_button("PLANKS (x4)", "1 Timber Beam", func(): _craft_preset({"timber": 1}, "planks", 4))
-	var r3 = _create_recipe_button("STONE PICKAXE", "2 Timber + 3 Cobblestone", func(): _craft_preset({"timber": 2, "cobblestone": 3}, "pickaxe", 1))
-	var r4 = _create_recipe_button("BRICKS (x4)", "4 Cobblestone", func(): _craft_preset({"cobblestone": 4}, "cobblestone", 4))
+	var r1 = _create_recipe_button("torch", 4, {"timber": 1, "phosphor": 1}, "Carbide Torches", "Placeable cave illumination torches.")
+	var r2 = _create_recipe_button("planks", 4, {"timber": 1}, "Wooden Planks", "Lightweight wooden construction material.")
+	var r3 = _create_recipe_button("pickaxe", 1, {"timber": 2, "cobblestone": 3}, "Prospector Pickaxe", "Excavation tool to mine cavern stone and mineral ores.")
+	var r4 = _create_recipe_button("cobblestone", 4, {"cobblestone": 4}, "Reinforced Cobble", "Durable stone blocks for masonry ramps and walls.")
+	var r5 = _create_recipe_button("rations", 1, {"mushroom": 1, "lichen": 1}, "Expedition Stew", "Nutrient-rich field ration (+50 Satiety).")
+	var r6 = _create_recipe_button("flare", 2, {"phosphor": 1, "iron": 1}, "Signal Flare", "High-intensity pyrotechnic flare to illuminate vast abyss chasms.")
+	var r7 = _create_recipe_button("salve", 1, {"mushroom": 2, "water": 1}, "Restorative Salve", "Potent antiseptic balm (+50 Health).")
+	var r8 = _create_recipe_button("grappling_rope", 1, {"iron": 2, "lichen": 2}, "Grappling Hook", "Steel hook with hemp cord for scaling vertical subterranean cliffs.")
+	var r9 = _create_recipe_button("dynamite", 1, {"coal": 2, "timber": 1}, "Blasting Dynamite", "Demolition explosive charge to shatter solid rock veins.")
 
 	recipes_hbox.add_child(r1)
 	recipes_hbox.add_child(r2)
 	recipes_hbox.add_child(r3)
 	recipes_hbox.add_child(r4)
+	recipes_hbox.add_child(r5)
+	recipes_hbox.add_child(r6)
+	recipes_hbox.add_child(r7)
+	recipes_hbox.add_child(r8)
+	recipes_hbox.add_child(r9)
 	quick_box.add_child(recipes_hbox)
 	craft_row.add_child(quick_box)
 
@@ -410,9 +557,9 @@ func _build_ui() -> void:
 
 	# Backpack 24-slot grid (3 rows x 8 columns)
 	var bp_label = Label.new()
-	bp_label.text = "SURVEYOR BACKPACK (SLOTS 9-32)"
+	bp_label.text = "BACKPACK"
 	bp_label.add_theme_color_override("font_color", Color(0.70, 0.75, 0.82))
-	bp_label.add_theme_font_size_override("font_size", 12)
+	bp_label.add_theme_font_size_override("font_size", 11)
 	main_vbox.add_child(bp_label)
 
 	backpack_container = GridContainer.new()
@@ -428,9 +575,9 @@ func _build_ui() -> void:
 
 	# Hotbar 8-slot strip
 	var hb_label = Label.new()
-	hb_label.text = "EQUIPMENT BELT / HOTBAR (KEYS 1-8)"
+	hb_label.text = "EQUIPMENT BELT (1-8)"
 	hb_label.add_theme_color_override("font_color", Color(0.92, 0.78, 0.42))
-	hb_label.add_theme_font_size_override("font_size", 12)
+	hb_label.add_theme_font_size_override("font_size", 11)
 	main_vbox.add_child(hb_label)
 
 	hotbar_container = HBoxContainer.new()
@@ -444,45 +591,144 @@ func _build_ui() -> void:
 	# Sleek Tooltip Panel
 	_build_tooltip(bg)
 
-	# Mouse Cursor Floating Preview Stack
+	# Mouse Cursor Floating Preview Stack with Item Icon
 	cursor_preview = Control.new()
 	cursor_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cursor_preview.visible = false
+
+	var cp_icon = TextureRect.new()
+	cp_icon.name = "CursorIcon"
+	cp_icon.custom_minimum_size = Vector2(32, 32)
+	cp_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	cp_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cursor_preview.add_child(cp_icon)
+
 	var cp_lbl = Label.new()
 	cp_lbl.name = "CursorLabel"
+	cp_lbl.position = Vector2(22, 16)
+	cp_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cp_lbl.add_theme_font_size_override("font_size", 11)
+	cp_lbl.add_theme_color_override("font_color", Color(0.96, 0.96, 0.98))
+	cp_lbl.add_theme_color_override("font_shadow_color", Color(0.04, 0.05, 0.07, 0.9))
+	cp_lbl.add_theme_constant_override("shadow_offset_x", 1)
+	cp_lbl.add_theme_constant_override("shadow_offset_y", 1)
 	cursor_preview.add_child(cp_lbl)
 	add_child(cursor_preview)
 
 func _create_slot_button(slot_idx: int) -> Button:
 	var btn = Button.new()
-	btn.custom_minimum_size = Vector2(76, 52)
+	btn.custom_minimum_size = Vector2(76, 76)
+	btn.text = ""
 	btn.clip_text = true
 
 	var style_normal = StyleBoxFlat.new()
-	style_normal.bg_color = Color(0.14, 0.16, 0.19, 0.90)
-	style_normal.border_color = Color(0.25, 0.28, 0.35, 1.0)
-	style_normal.border_width_left = 1
-	style_normal.border_width_right = 1
-	style_normal.border_width_top = 1
-	style_normal.border_width_bottom = 1
-	style_normal.corner_radius_top_left = 3
-	style_normal.corner_radius_top_right = 3
-	style_normal.corner_radius_bottom_left = 3
-	style_normal.corner_radius_bottom_right = 3
+	style_normal.bg_color = Color(0.08, 0.10, 0.13, 0.95)
+	style_normal.border_color = Color(0.55, 0.44, 0.26, 0.90)
+	style_normal.border_width_left = 2
+	style_normal.border_width_right = 2
+	style_normal.border_width_top = 2
+	style_normal.border_width_bottom = 2
+	style_normal.corner_radius_top_left = 5
+	style_normal.corner_radius_top_right = 5
+	style_normal.corner_radius_bottom_left = 5
+	style_normal.corner_radius_bottom_right = 5
+
+	var style_hover = StyleBoxFlat.new()
+	style_hover.bg_color = Color(0.14, 0.16, 0.20, 0.98)
+	style_hover.border_color = Color(0.95, 0.82, 0.38, 1.0)
+	style_hover.border_width_left = 2
+	style_hover.border_width_right = 2
+	style_hover.border_width_top = 2
+	style_hover.border_width_bottom = 2
+	style_hover.corner_radius_top_left = 5
+	style_hover.corner_radius_top_right = 5
+	style_hover.corner_radius_bottom_left = 5
+	style_hover.corner_radius_bottom_right = 5
 
 	btn.add_theme_stylebox_override("normal", style_normal)
+	btn.add_theme_stylebox_override("hover", style_hover)
 	btn.gui_input.connect(func(event): _on_slot_gui_input(slot_idx, event))
 	btn.mouse_entered.connect(func(): _on_slot_hover(slot_idx))
 	btn.mouse_exited.connect(func(): _hide_tooltip())
 
+	# Hotkey badge (top-left)
+	var hotkey_lbl = Label.new()
+	hotkey_lbl.name = "HotkeyBadge"
+	hotkey_lbl.position = Vector2(6, 4)
+	hotkey_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hotkey_lbl.add_theme_font_size_override("font_size", 11)
+	hotkey_lbl.add_theme_color_override("font_color", Color(0.85, 0.72, 0.40, 0.85))
+	btn.add_child(hotkey_lbl)
+
+	# Count badge (bottom-right)
+	var count_lbl = Label.new()
+	count_lbl.name = "CountBadge"
+	count_lbl.position = Vector2(4, 52)
+	count_lbl.custom_minimum_size = Vector2(68, 18)
+	count_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	count_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	count_lbl.add_theme_font_size_override("font_size", 13)
+	count_lbl.add_theme_color_override("font_color", Color(0.96, 0.96, 0.98))
+	count_lbl.add_theme_color_override("font_shadow_color", Color(0.04, 0.05, 0.07, 0.95))
+	count_lbl.add_theme_constant_override("shadow_offset_x", 1)
+	count_lbl.add_theme_constant_override("shadow_offset_y", 1)
+	btn.add_child(count_lbl)
+
 	return btn
 
-func _create_recipe_button(btn_text: String, subtext: String, callback: Callable) -> Button:
+func _create_recipe_button(out_id: String, out_count: int, cost: Dictionary, title_str: String, desc_str: String) -> Button:
 	var btn = Button.new()
-	btn.text = "%s\n[%s]" % [btn_text, subtext]
-	btn.custom_minimum_size = Vector2(125, 48)
-	btn.add_theme_font_size_override("font_size", 10)
-	btn.pressed.connect(callback)
+	btn.custom_minimum_size = Vector2(76, 76)
+	btn.text = ""
+	btn.icon = PixelTextureGenerator.get_item_icon(out_id)
+	btn.expand_icon = true
+	btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+	var style_normal = StyleBoxFlat.new()
+	style_normal.bg_color = Color(0.14, 0.16, 0.20, 0.95)
+	style_normal.border_color = Color(0.32, 0.38, 0.48, 0.85)
+	style_normal.border_width_left = 1
+	style_normal.border_width_right = 1
+	style_normal.border_width_top = 1
+	style_normal.border_width_bottom = 1
+	style_normal.corner_radius_top_left = 4
+	style_normal.corner_radius_top_right = 4
+	style_normal.corner_radius_bottom_left = 4
+	style_normal.corner_radius_bottom_right = 4
+	btn.add_theme_stylebox_override("normal", style_normal)
+
+	# Yield badge (bottom-right)
+	var yield_lbl = Label.new()
+	yield_lbl.position = Vector2(4, 44)
+	yield_lbl.custom_minimum_size = Vector2(56, 16)
+	yield_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	yield_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	yield_lbl.text = ("x%d" % out_count) if out_count > 1 else ""
+	yield_lbl.add_theme_font_size_override("font_size", 11)
+	yield_lbl.add_theme_color_override("font_color", Color(0.95, 0.82, 0.40))
+	yield_lbl.add_theme_color_override("font_shadow_color", Color(0.04, 0.05, 0.07, 0.9))
+	yield_lbl.add_theme_constant_override("shadow_offset_x", 1)
+	yield_lbl.add_theme_constant_override("shadow_offset_y", 1)
+	btn.add_child(yield_lbl)
+
+	# Format cost string for tooltip
+	var cost_parts = []
+	for k in cost.keys():
+		var reg = ITEM_REGISTRY.get(k, {})
+		var c_name = reg.get("name", k.capitalize())
+		cost_parts.push_back("%dx %s" % [cost[k], c_name])
+	var cost_str = ", ".join(cost_parts)
+
+	btn.mouse_entered.connect(func():
+		tooltip_title.text = "%s (x%d)" % [title_str, out_count]
+		tooltip_info.text = "INGREDIENTS: " + cost_str
+		tooltip_desc.text = desc_str
+		tooltip_panel.visible = true
+		tooltip_panel.global_position = get_viewport().get_mouse_position() + Vector2(18, 18)
+	)
+	btn.mouse_exited.connect(func(): _hide_tooltip())
+	btn.pressed.connect(func(): _craft_preset(cost, out_id, out_count))
+
 	return btn
 
 func _build_tooltip(parent: Control) -> void:
@@ -713,10 +959,12 @@ func _process(_delta: float) -> void:
 		return
 	if not cursor_stack.is_empty():
 		cursor_preview.visible = true
-		cursor_preview.global_position = get_viewport().get_mouse_position() + Vector2(16, 16)
+		cursor_preview.global_position = get_viewport().get_mouse_position() + Vector2(14, 14)
+		var cp_icon: TextureRect = cursor_preview.get_node_or_null("CursorIcon")
+		if cp_icon:
+			cp_icon.texture = PixelTextureGenerator.get_item_icon(cursor_stack.id)
 		var lbl: Label = cursor_preview.get_node("CursorLabel")
-		lbl.text = "%s (x%d)" % [cursor_stack.id.to_upper(), cursor_stack.count]
-		lbl.add_theme_color_override("font_color", Color(0.95, 0.85, 0.45))
+		lbl.text = str(cursor_stack.count) if cursor_stack.count > 1 else ""
 	else:
 		cursor_preview.visible = false
 
@@ -770,18 +1018,23 @@ func _refresh_all_slots() -> void:
 			_render_slot_btn(btn, craft_grid[i], false)
 
 func _render_slot_btn(btn: Button, item: Dictionary, is_active: bool, hotkey_badge: String = "") -> void:
-	var text = ""
-	if hotkey_badge != "":
-		text += "[%s] " % hotkey_badge
+	btn.text = "" # Keep text empty so 32x32 pixel icon is 100% visible and unoccluded
+	var hotkey_lbl: Label = btn.get_node_or_null("HotkeyBadge")
+	var count_lbl: Label = btn.get_node_or_null("CountBadge")
+
+	if hotkey_lbl:
+		hotkey_lbl.text = hotkey_badge
 
 	if item.is_empty():
-		btn.text = text
-		btn.remove_theme_color_override("font_color")
+		btn.icon = null
+		if count_lbl:
+			count_lbl.text = ""
 	else:
-		var reg = ITEM_REGISTRY.get(item.id, {})
-		var short_name = reg.get("name", item.id).substr(0, 10).to_upper()
-		btn.text = "%s%s\nx%d" % [text, short_name, item.count]
-		btn.add_theme_color_override("font_color", Color(0.95, 0.95, 0.98))
+		btn.icon = PixelTextureGenerator.get_item_icon(item.id)
+		btn.expand_icon = true
+		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		if count_lbl:
+			count_lbl.text = str(item.count) if item.count > 1 else ""
 
 	# Active border style
 	var style: StyleBoxFlat = btn.get_theme_stylebox("normal").duplicate()

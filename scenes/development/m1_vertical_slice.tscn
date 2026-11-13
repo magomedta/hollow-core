@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://m1vertslice001"]
+
+[ext_resource type="Script" path="res://scripts/world/m1_vertical_slice.gd" id="1_m1slice"]
+
+[node name="M1VerticalSlice" type="Node3D"]
+script = ExtResource("1_m1slice")

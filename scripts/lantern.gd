@@ -8,13 +8,17 @@ signal lantern_toggled(is_on: bool)
 
 @export var max_fuel: float = 100.0
 @export var fuel_burn_rate: float = 0.35 # ~4.5 minutes per tank
-@export var base_omni_energy: float = 2.40
-@export var base_spot_energy: float = 3.60
-@export var warm_color: Color = Color(1.0, 0.74, 0.38)
+@export var base_omni_energy: float = 1.80
+@export var base_spot_energy: float = 2.20
+@export var warm_color: Color = Color(1.0, 0.78, 0.44)
 
 var current_fuel: float = 100.0
 var is_lit: bool = true
 var is_held_in_hand: bool = true
+var flicker_timer: float = 0.0
+
+func flicker(duration: float = 1.4) -> void:
+	flicker_timer = duration
 
 # Dynamic light & mesh references
 var omni_light: OmniLight3D
@@ -30,6 +34,18 @@ var natural_rotation: Vector3 = Vector3(-4.0, 12.0, -2.0)
 var current_sway_rot: Vector3 = Vector3.ZERO
 var target_sway_rot: Vector3 = Vector3.ZERO
 var sway_bob_phase: float = 0.0
+var wall_tuck_blend: float = 0.0
+
+func set_wall_tuck(factor: float) -> void:
+	wall_tuck_blend = clamp(factor, 0.0, 1.0)
+
+func get_effective_natural_pos() -> Vector3:
+	var tuck_offset = Vector3(-0.04 * wall_tuck_blend, -0.06 * wall_tuck_blend, 0.24 * wall_tuck_blend)
+	return natural_position + tuck_offset
+
+func get_effective_natural_rot() -> Vector3:
+	var tuck_rot = Vector3(18.0 * wall_tuck_blend, 12.0 * wall_tuck_blend, -8.0 * wall_tuck_blend)
+	return natural_rotation + tuck_rot
 
 func _ready() -> void:
 	_construct_lantern_hierarchy()
@@ -315,32 +331,39 @@ func _construct_lantern_hierarchy() -> void:
 	thumb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	arm_root.add_child(thumb)
 
+	# Disable self-shadow casting on all lantern body meshes to eliminate ugly shadow artifacts
+	_disable_mesh_shadows(lantern_body_root)
+
 	# 10. Dynamic Lights (Parented to this Node3D so they shine in both hand and harness modes)
+	# Omni light provides smooth 360-degree illumination around player without harsh self-shadow cuts
 	omni_light = OmniLight3D.new()
 	omni_light.name = "LanternMantleLight"
 	omni_light.light_color = warm_color
-	omni_light.light_energy = base_omni_energy
-	omni_light.light_indirect_energy = 2.4
-	omni_light.omni_range = 48.0
-	omni_light.omni_attenuation = 0.82
-	omni_light.shadow_enabled = true
-	omni_light.shadow_bias = 0.05
-	omni_light.position = Vector3(0, 0.002, 0)
+	omni_light.light_energy = 2.2
+	omni_light.omni_range = 24.0 # Generous 24m radius for exploration
+	omni_light.omni_attenuation = 1.0 # Smooth, physically believable linear falloff
+	omni_light.shadow_enabled = false # Disabling shadows on hand light avoids screen-wide occlusion wedges
+	omni_light.position = Vector3(0.0, 0.08, -0.12)
 	add_child(omni_light)
 
+	# Forward reflector beam illuminates tunnels in front of explorer
 	spot_light = SpotLight3D.new()
 	spot_light.name = "SurveyorReflectorBeam"
-	spot_light.light_color = Color(1.0, 0.82, 0.50)
-	spot_light.light_energy = base_spot_energy
-	spot_light.light_indirect_energy = 2.6
-	spot_light.spot_range = 95.0
-	spot_light.spot_angle = 54.0
-	spot_light.spot_attenuation = 0.84
-	spot_light.shadow_enabled = true
-	spot_light.shadow_bias = 0.05
-	spot_light.position = Vector3(0, 0.002, -0.06)
-	spot_light.rotation_degrees = Vector3(-6.0, 0, 0)
+	spot_light.light_color = Color(1.0, 0.86, 0.55)
+	spot_light.light_energy = 2.4
+	spot_light.spot_range = 36.0 # Reaches into deep tunnel ahead
+	spot_light.spot_angle = 50.0
+	spot_light.spot_attenuation = 1.0
+	spot_light.shadow_enabled = false
+	spot_light.position = Vector3(0.0, 0.08, -0.16)
+	spot_light.rotation_degrees = Vector3(-4.0, 0, 0)
 	add_child(spot_light)
+
+func _disable_mesh_shadows(node: Node) -> void:
+	if node is MeshInstance3D:
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for child in node.get_children():
+		_disable_mesh_shadows(child)
 
 func set_hand_mode(in_hand: bool) -> void:
 	is_held_in_hand = in_hand
@@ -371,6 +394,9 @@ func toggle_lantern() -> void:
 	is_lit = not is_lit
 	_update_lighting_state()
 	lantern_toggled.emit(is_lit)
+	var sm = get_tree().get_first_node_in_group("sound_manager")
+	if sm and sm.has_method("play_sfx"):
+		sm.play_sfx("lantern_click", global_position)
 
 func set_lit(lit: bool) -> void:
 	is_lit = lit
@@ -403,17 +429,31 @@ func apply_camera_rotation_impulse(delta_mouse: Vector2) -> void:
 func apply_movement_bob(velocity: Vector3, on_floor: bool, delta: float) -> void:
 	if not is_held_in_hand:
 		return
+	var eff_pos = get_effective_natural_pos()
 	var speed = Vector2(velocity.x, velocity.z).length()
 	if on_floor and speed > 0.2:
 		sway_bob_phase += delta * speed * 2.4
 		var bob_y = sin(sway_bob_phase) * 0.012
 		var bob_x = cos(sway_bob_phase * 0.5) * 0.008
-		position = natural_position + Vector3(bob_x, bob_y, 0)
+		position = eff_pos + Vector3(bob_x, bob_y, 0)
 	else:
 		sway_bob_phase = 0.0
-		position = position.lerp(natural_position, delta * 6.0)
+		position = position.lerp(eff_pos, delta * 6.0)
 
 func _process(delta: float) -> void:
+	# Horror / Paranormal light flicker
+	if flicker_timer > 0.0:
+		flicker_timer -= delta
+		if omni_light and is_lit:
+			omni_light.light_energy = base_omni_energy * randf_range(0.12, 0.55)
+		if spot_light and is_lit:
+			spot_light.light_energy = base_spot_energy * randf_range(0.12, 0.55)
+	elif is_lit:
+		if omni_light and omni_light.light_energy != base_omni_energy:
+			omni_light.light_energy = base_omni_energy
+		if spot_light and spot_light.light_energy != base_spot_energy:
+			spot_light.light_energy = base_spot_energy
+
 	# Fuel consumption
 	if is_lit and fuel_burn_rate > 0.0:
 		current_fuel = max(0.0, current_fuel - fuel_burn_rate * delta)
@@ -429,6 +469,9 @@ func _process(delta: float) -> void:
 		gauge_needle.rotation_degrees.z = lerp(-65.0, 65.0, fuel_ratio)
 
 	if is_held_in_hand:
+		var eff_pos = get_effective_natural_pos()
+		var eff_rot = get_effective_natural_rot()
 		current_sway_rot = current_sway_rot.lerp(target_sway_rot, delta * 8.0)
-		rotation_degrees = natural_rotation + current_sway_rot
+		rotation_degrees = eff_rot + current_sway_rot
+		position = position.lerp(eff_pos, delta * 12.0)
 		target_sway_rot = target_sway_rot.lerp(Vector3.ZERO, delta * 6.0)

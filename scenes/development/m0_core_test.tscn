@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://m0coretest001"]
+
+[ext_resource type="Script" path="res://scripts/world/m0_core_test.gd" id="1_m0core"]
+
+[node name="M0CoreTest" type="Node3D"]
+script = ExtResource("1_m0core")

@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="BiomeDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/biomes/biome_definition.gd" id="1_biome"]
+
+[resource]
+script = ExtResource("1_biome")
+id = "glacial_spires"
+display_name = "Ледниковые Шпили"
+min_height = 44.0
+max_height = 72.0
+spatial_bounds = AABB(-30, 44, -14, 60, 28, 55)
+priority = 10
+blend_margin = 4.0
+ambient_color = Color(0.20, 0.26, 0.34, 1)
+ambient_energy = 0.35
+fog_color = Color(0.18, 0.22, 0.28, 1)
+fog_density = 0.024
+fog_aerial_perspective = 0.60
+dominant_block = 13
+secondary_blocks = Array[int]([11, 1])
+surface_friction = 0.38
+water_level_y = -999.0
+reverb_time = 1.8
+reverb_damping = 0.4
+ambient_ambience_id = "ambience_glacial"
+primary_footstep_sound = "footstep_ice"
+acoustic_absorption = 0.25
