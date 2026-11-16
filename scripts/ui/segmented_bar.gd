@@ -2,8 +2,8 @@
 class_name SegmentedProgressBar
 extends Control
 
-## Segmented Crystal/LED Progress Bar in the Ornate Steampunk Style
-## Features bronze chevron endcaps, sapphire steel rails, and discrete pips.
+## High-Resolution (High-DPI) Segmented Progress Bar in the Victorian Steampunk Style
+## Features sculpted bronze chevron endcaps, sapphire steel rails, and discrete glowing crystal pips.
 
 const OrnateUIClass = preload("res://scripts/ui/ornate_ui.gd")
 
@@ -23,7 +23,7 @@ func _init(p_count: int = 16, p_variant: String = "amber", p_title: String = "")
 	pip_count = p_count
 	variant = p_variant
 	bar_title = p_title
-	custom_minimum_size = Vector2(260, 44)
+	custom_minimum_size = Vector2(280, 48)
 
 func _ready() -> void:
 	_build_bar()
@@ -39,7 +39,7 @@ func _build_bar() -> void:
 	vbox.add_theme_constant_override("separation", 2)
 	add_child(vbox)
 
-	# Optional title and % readout row
+	# Title and % readout row
 	var header_hbox = HBoxContainer.new()
 	title_label = Label.new()
 	title_label.text = bar_title
@@ -58,28 +58,32 @@ func _build_bar() -> void:
 	header_hbox.add_child(pct_label)
 	vbox.add_child(header_hbox)
 
-	# The Bar Rail Container
+	# The Bar Rail Container (High-DPI)
 	var rail_box = Control.new()
-	rail_box.custom_minimum_size = Vector2(240, 26)
+	rail_box.custom_minimum_size = Vector2(260, 28)
 	rail_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.add_child(rail_box)
 
 	bg_ninepatch = NinePatchRect.new()
-	var rail_tex = OrnateUIClass.get_texture("textures/ui/ornate_bar_frame_9slice.png")
+	var rail_tex = OrnateUIClass.get_texture("textures/ui/ornate_bar_frame_hd.png")
+	if rail_tex == null:
+		rail_tex = OrnateUIClass.get_texture("textures/ui/ornate_bar_frame_9slice.png")
+
 	if rail_tex:
 		bg_ninepatch.texture = rail_tex
-		bg_ninepatch.patch_margin_left = 30
-		bg_ninepatch.patch_margin_right = 30
-		bg_ninepatch.patch_margin_top = 6
-		bg_ninepatch.patch_margin_bottom = 6
+		bg_ninepatch.patch_margin_left = 60
+		bg_ninepatch.patch_margin_right = 60
+		bg_ninepatch.patch_margin_top = 10
+		bg_ninepatch.patch_margin_bottom = 10
+
 	bg_ninepatch.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rail_box.add_child(bg_ninepatch)
 
 	# Centered pips row
 	var margin = MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 32)
-	margin.add_theme_constant_override("margin_right", 32)
+	margin.add_theme_constant_override("margin_left", 36)
+	margin.add_theme_constant_override("margin_right", 36)
 	margin.add_theme_constant_override("margin_top", 4)
 	margin.add_theme_constant_override("margin_bottom", 4)
 	rail_box.add_child(margin)
@@ -92,22 +96,29 @@ func _build_bar() -> void:
 	var initial_tex = _get_active_texture()
 	for i in range(pip_count):
 		var pr = TextureRect.new()
-		pr.custom_minimum_size = Vector2(8, 16)
+		pr.custom_minimum_size = Vector2(10, 18)
+		pr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		pr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		pr.texture = initial_tex
 		pips_container.add_child(pr)
 		pip_rects.append(pr)
 
 func _get_active_texture() -> Texture2D:
-	var path = "textures/ui/pip_amber.png"
+	var path = "textures/ui/pip_hd_amber.png"
 	match variant:
-		"red": path = "textures/ui/pip_red.png"
-		"green": path = "textures/ui/pip_green.png"
-		"blue": path = "textures/ui/pip_blue.png"
-	return OrnateUIClass.get_texture(path)
+		"red": path = "textures/ui/pip_hd_red.png"
+		"green": path = "textures/ui/pip_hd_green.png"
+		"blue": path = "textures/ui/pip_hd_blue.png"
+	var tex = OrnateUIClass.get_texture(path)
+	if tex == null:
+		tex = OrnateUIClass.get_texture(path.replace("_hd", ""))
+	return tex
 
 func _get_empty_texture() -> Texture2D:
-	return OrnateUIClass.get_texture("textures/ui/pip_empty.png")
+	var tex = OrnateUIClass.get_texture("textures/ui/pip_hd_empty.png")
+	if tex == null:
+		tex = OrnateUIClass.get_texture("textures/ui/pip_empty.png")
+	return tex
 
 func set_value(p_val: float) -> void:
 	value = clamp(p_val, 0.0, 1.0)

@@ -128,7 +128,7 @@ func _build_ui() -> void:
 	main_vbox.add_child(header_hbox)
 
 	var title_lbl = Label.new()
-	title_lbl.text = "FIELD WORKBENCH // EXPEDITION CRAFTING COMPENDIUM"
+	title_lbl.text = "FIELD WORKBENCH — EXPEDITION CRAFTING COMPENDIUM"
 	title_lbl.add_theme_color_override("font_color", Color(0.96, 0.84, 0.35))
 	title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_hbox.add_child(title_lbl)

@@ -38,33 +38,56 @@ func _ready() -> void:
 		add_child(col)
 
 func _build_visuals() -> void:
-	# 1. Main Document Dispatch Box / Folio
+	# 1. Main Vintage Field Folio Binder
 	box_mesh = MeshInstance3D.new()
 	var mesh = BoxMesh.new()
-	mesh.size = Vector3(0.42, 0.30, 0.12)
+	mesh.size = Vector3(0.38, 0.038, 0.28)
 	box_mesh.mesh = mesh
 
 	var mat = StandardMaterial3D.new()
-	# Weathered dark oxidized tin / vulcanite folder
-	mat.albedo_color = Color(0.22, 0.24, 0.25, 1.0)
-	mat.metallic = 0.65
-	mat.roughness = 0.70
+	# Weathered dark umber leather folio binding
+	mat.albedo_color = Color(0.24, 0.16, 0.11, 1.0)
+	mat.roughness = 0.80
 	box_mesh.material_override = mat
+	box_mesh.position = Vector3(0, 0.019, 0)
 	add_child(box_mesh)
 
-	# 2. Brass Latch / Stamped Seal
+	# 2. Cream Document Paper Core protruding between covers
+	var paper_core = MeshInstance3D.new()
+	var p_box = BoxMesh.new()
+	p_box.size = Vector3(0.36, 0.024, 0.26)
+	paper_core.mesh = p_box
+	var p_mat = StandardMaterial3D.new()
+	p_mat.albedo_color = Color(0.90, 0.86, 0.74, 1.0)
+	p_mat.roughness = 0.90
+	paper_core.material_override = p_mat
+	paper_core.position = Vector3(0.005, 0.019, 0)
+	add_child(paper_core)
+
+	# 3. Brass Latch & Riveted Seal
 	latch_mesh = MeshInstance3D.new()
 	var l_mesh = BoxMesh.new()
-	l_mesh.size = Vector3(0.10, 0.06, 0.04)
+	l_mesh.size = Vector3(0.08, 0.040, 0.03)
 	latch_mesh.mesh = l_mesh
 
 	var l_mat = StandardMaterial3D.new()
-	l_mat.albedo_color = Color(0.75, 0.60, 0.28, 1.0) # Aged brass
+	l_mat.albedo_color = Color(0.80, 0.65, 0.30, 1.0) # Aged brass
 	l_mat.metallic = 0.85
 	l_mat.roughness = 0.35
 	latch_mesh.material_override = l_mat
-	latch_mesh.position = Vector3(0, 0, 0.07)
+	latch_mesh.position = Vector3(0, 0.020, 0.14)
 	add_child(latch_mesh)
+
+	# 4. Brass Corner Protectors
+	for cx in [-0.18, 0.18]:
+		for cz in [-0.13, 0.13]:
+			var corner = MeshInstance3D.new()
+			var c_box = BoxMesh.new()
+			c_box.size = Vector3(0.030, 0.040, 0.030)
+			corner.mesh = c_box
+			corner.material_override = l_mat
+			corner.position = Vector3(cx, 0.019, cz)
+			add_child(corner)
 
 func get_interaction_prompt() -> String:
 	var doc_data = DocumentRegistryClass.get_document(document_id)
@@ -78,7 +101,7 @@ func _execute_interaction(_player: CharacterBody3D) -> void:
 		return
 
 	var title = doc_data.get("title", "ДОКУМЕНТ")
-	var header_meta = "%s // %s" % [doc_data.get("date", ""), doc_data.get("author", "")]
+	var header_meta = "%s — %s" % [doc_data.get("date", ""), doc_data.get("author", "")]
 	var body = doc_data.get("primary_lore", "")
 
 	# Locate or spawn DocumentViewer in current scene tree

@@ -66,6 +66,9 @@ var footstep_acoustic_timer: float = 0.0
 var hand_strike_timer: float = 0.0
 var hand_strike_cooldown: float = 0.35
 
+var is_on_ladder: bool = false
+var ladder_step_timer: float = 0.0
+
 # References
 var camera: Camera3D
 var neck: Node3D
@@ -90,6 +93,7 @@ var head_bob_phase: float = 0.0
 var default_camera_y: float = 1.65
 var crouch_camera_y: float = 1.05
 var was_on_floor: bool = true
+var last_fall_speed: float = 0.0
 
 # Subterranean Depth baseline
 var base_depth_meters: float = 1420.0
@@ -251,9 +255,9 @@ func _setup_nodes() -> void:
 		inventory_system.active_slot_changed.connect(_on_inventory_active_slot_changed)
 		inventory_system.inventory_updated.connect(_on_inventory_system_updated)
 
-	# 6. Anti-Wall-Clipping Viewmodel SubViewport Overlay & Layer Isolation
-	_setup_viewmodel_viewport()
-	_apply_viewmodel_layers()
+	# 6. Direct Camera Held Item Rendering (Zero SubViewport artifacts)
+	camera.cull_mask = 0xFFFFFFFF
+	camera.near = 0.02
 
 func _setup_viewmodel_viewport() -> void:
 	if camera == null:
@@ -277,6 +281,8 @@ func _setup_viewmodel_viewport() -> void:
 	var vm_viewport = SubViewport.new()
 	vm_viewport.name = "ViewmodelViewport"
 	vm_viewport.transparent_bg = true
+	vm_viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
+	vm_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	vm_viewport.handle_input_locally = false
 	vm_viewport.own_world_3d = false # Shared 3D world: shares lantern, torches, atmosphere!
 	vm_container.add_child(vm_viewport)
@@ -287,8 +293,10 @@ func _setup_viewmodel_viewport() -> void:
 	viewmodel_camera.fov = camera.fov
 	viewmodel_camera.near = 0.01
 	viewmodel_camera.far = 50.0
-	if camera.environment:
-		viewmodel_camera.environment = camera.environment
+	var vm_viewport_env = Environment.new()
+	vm_viewport_env.background_mode = Environment.BG_COLOR
+	vm_viewport_env.background_color = Color(0, 0, 0, 0)
+	viewmodel_camera.environment = vm_viewport_env
 	vm_viewport.add_child(viewmodel_camera)
 
 	# Dedicated viewmodel directional fill so held items are crisply shaded
@@ -449,6 +457,11 @@ func set_in_water(in_water: bool, surface_y: float = 0.0) -> void:
 	is_wading_in_water = in_water
 	current_water_surface_y = surface_y
 
+func set_on_ladder(on_ladder: bool) -> void:
+	is_on_ladder = on_ladder
+	if is_on_ladder:
+		velocity.y = 0.0
+
 func _physics_process(delta: float) -> void:
 	if invulnerability_timer > 0.0:
 		invulnerability_timer -= delta
@@ -459,24 +472,51 @@ func _physics_process(delta: float) -> void:
 	# 2. Movement & Gravity
 	var on_floor = is_on_floor()
 	if not was_on_floor and on_floor:
-		var sm = get_tree().get_first_node_in_group("sound_manager")
-		if sm and sm.has_method("play_land"):
-			sm.play_land(global_position)
-		elif sm and sm.has_method("play_sfx"):
-			sm.play_sfx("land", global_position, 1.0, -2.0)
+		if last_fall_speed > 1.2:
+			var sm = get_tree().get_first_node_in_group("sound_manager")
+			if sm and sm.has_method("play_land"):
+				sm.play_land(global_position)
+			elif sm and sm.has_method("play_sfx"):
+				sm.play_sfx("land", global_position, 1.0, 0.0)
+	if not on_floor:
+		last_fall_speed = -velocity.y
+	else:
+		last_fall_speed = 0.0
 	was_on_floor = on_floor
 
-	if not on_floor:
+	if is_on_ladder:
+		var climb_v = 0.0
+		if Input.is_action_pressed("move_forward"):
+			climb_v += 3.4
+		elif Input.is_action_pressed("move_back"):
+			climb_v -= 3.4
+
+		if Input.is_action_just_pressed("jump"):
+			is_on_ladder = false
+			velocity.y = jump_velocity * 0.8
+		else:
+			velocity.y = climb_v
+			if abs(climb_v) > 0.1:
+				ladder_step_timer -= delta
+				if ladder_step_timer <= 0.0:
+					ladder_step_timer = 0.38
+					var sm = get_tree().get_first_node_in_group("sound_manager")
+					if sm and sm.has_method("play_sfx"):
+						sm.play_sfx("pickaxe_hit", global_position, 0.4, -4.0)
+	elif not on_floor:
 		velocity.y -= gravity * delta
 	else:
 		if velocity.y < 0:
 			velocity.y = 0.0
 
-	if Input.is_action_just_pressed("jump") and on_floor:
+	if not is_on_ladder and Input.is_action_just_pressed("jump") and on_floor:
 		velocity.y = jump_velocity * (0.8 if is_wading_in_water else 1.0)
 		var sm = get_tree().get_first_node_in_group("sound_manager")
-		if sm and sm.has_method("play_sfx"):
-			sm.play_sfx("jump", global_position, -4.0)
+		if sm:
+			if sm.has_method("play_jump"):
+				sm.play_jump()
+			elif sm.has_method("play_sfx"):
+				sm.play_sfx("jump", global_position, 1.0, -4.0)
 
 	is_sprinting = Input.is_action_pressed("sprint") and not is_crouching and not is_wading_in_water
 	is_crouching = Input.is_action_pressed("crouch")
@@ -581,7 +621,9 @@ func _physics_process(delta: float) -> void:
 	if hand_strike_timer > 0.0:
 		hand_strike_timer -= delta
 
-	if active_slot != 2 and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	var holding_pickaxe = (pickaxe != null and pickaxe.is_active)
+
+	if not holding_pickaxe and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var hud = get_tree().get_first_node_in_group("game_hud")
 		var is_radial = hud and hud.get("is_radial_menu_open")
 		if not is_radial and hand_strike_timer <= 0.0:
@@ -685,12 +727,45 @@ func _update_ghost_placement_preview() -> void:
 		ghost_block_mesh.visible = false
 		has_valid_placement = false
 
-func _unhandled_input(event: InputEvent) -> void:
-	if crafting_system and crafting_system.is_open:
-		return
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		if not is_modal_ui_open():
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	elif what == NOTIFICATION_PREDELETE:
+		if active_bedrock_crack_mesh and is_instance_valid(active_bedrock_crack_mesh):
+			active_bedrock_crack_mesh.queue_free()
+		if ghost_block_mesh and is_instance_valid(ghost_block_mesh):
+			ghost_block_mesh.queue_free()
 
+func is_modal_ui_open() -> bool:
+	if crafting_system and crafting_system.is_open:
+		return true
+	if inventory_system and inventory_system.is_open:
+		return true
+	var tree = get_tree()
+	if tree:
+		var fj = tree.get_first_node_in_group("field_journal")
+		if fj and fj.get("is_open"):
+			return true
+		var dv = tree.get_first_node_in_group("document_viewer")
+		if dv and dv.get("visible"):
+			return true
+	return false
+
+func _input(event: InputEvent) -> void:
+	# Clicking window automatically recaptures mouse when no modal dialog is open
+	if event is InputEventMouseButton and event.is_pressed():
+		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not is_modal_ui_open():
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+			get_viewport().set_input_as_handled()
+			return
+
+	# Process mouse look in _input so no Control node or HUD can ever swallow camera rotation
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		var hud = get_tree().get_first_node_in_group("game_hud")
+		if is_modal_ui_open():
+			return
+
+		var hud = get_tree().get_first_node_in_group("game_hud") if get_tree() else null
 		if hud and hud.get("is_radial_menu_open"):
 			if hud.has_method("handle_radial_mouse_motion"):
 				hud.handle_radial_mouse_motion(event.relative)
@@ -707,15 +782,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		if pickaxe and pickaxe.has_method("apply_camera_rotation_impulse"):
 			pickaxe.apply_camera_rotation_impulse(mouse_delta)
 
-	elif event is InputEventMouseButton and event.is_pressed():
+func _unhandled_input(event: InputEvent) -> void:
+	if is_modal_ui_open():
+		return
+
+	if event is InputEventMouseButton and event.is_pressed():
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			var cur_item_id = ""
-			if inventory_system and inventory_system.has_method("get_active_item"):
-				cur_item_id = inventory_system.get_active_item().get("id", "")
-			if cur_item_id == "pickaxe" and pickaxe:
+			if pickaxe != null and pickaxe.is_active:
 				pickaxe.start_swing()
 			else:
-				_perform_hand_strike()
+				if hand_strike_timer <= 0.0:
+					hand_strike_timer = hand_strike_cooldown
+					_perform_hand_strike()
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			_handle_right_click_interaction()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -750,7 +828,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			if inventory_system:
 				inventory_system.toggle()
 		elif event.keycode == KEY_E or code == KEY_E or event.keycode == 1059:
-			_handle_interaction_key()
+			if inventory_system and inventory_system.is_open:
+				inventory_system.set_open(false)
+			else:
+				var interacted = _handle_interaction_key()
+				if not interacted and inventory_system:
+					inventory_system.toggle()
 		elif event.keycode == KEY_C or code == KEY_C or event.keycode == 1057:
 			if crafting_system:
 				crafting_system.toggle_menu()
@@ -777,7 +860,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			var k = code if (code >= KEY_1 and code <= KEY_8) else event.keycode
 			set_active_slot(k - KEY_0)
 
-func _handle_interaction_key() -> void:
+func _handle_interaction_key() -> bool:
 	# Raycast forward to check if looking at dropped items, lore logs, chests, water springs, or food
 	var space = get_world_3d().direct_space_state
 	var origin = camera.global_position
@@ -795,20 +878,20 @@ func _handle_interaction_key() -> void:
 			if col.has_method("interact"):
 				col.interact(self)
 				acoustic_noise_emitted.emit(global_position, 3.0, "interact")
-				return
+				return true
 
 		# 2. Scenario props / lore / interactive objects
 		if col != null and (col.is_in_group("interactable") or col.has_method("interact")):
 			if col.has_method("interact"):
 				col.interact(self)
 				acoustic_noise_emitted.emit(global_position, 3.0, "interact")
-				return
+				return true
 
 		var sm = get_tree().get_first_node_in_group("scenario_manager")
 		if sm and sm.has_method("interact_with_prop"):
 			if sm.interact_with_prop(col):
 				acoustic_noise_emitted.emit(global_position, 4.0, "interact")
-				return
+				return true
 
 		# 3. Interactive voxel blocks
 		var hit_pos = result.position
@@ -821,27 +904,27 @@ func _handle_interaction_key() -> void:
 					inventory_system.add_item("rations", 2)
 					inventory_system.add_item("water", 1)
 				lore_opened.emit("LOG_01_OUTPOST")
-				return
+				return true
 			elif b == VoxelWorldClass.BlockType.SLATE_BRICK:
 				lore_opened.emit("LOG_03_PRECURSOR")
-				return
+				return true
 			elif b == VoxelWorldClass.BlockType.WATER_SPRING:
 				current_hydration = max_hydration
 				acoustic_noise_emitted.emit(global_position, 8.0, "drink")
 				vitals_changed.emit(current_health, current_hydration, current_satiety, core_temperature)
-				return
+				return true
 			elif b == VoxelWorldClass.BlockType.BIOLUM_MUSHROOM:
 				voxel_world.set_block(coord.x, coord.y, coord.z, VoxelWorldClass.BlockType.AIR, true)
 				if inventory_system:
 					inventory_system.add_item("mushroom", 2)
 				acoustic_noise_emitted.emit(hit_pos, 8.0, "harvest")
-				return
+				return true
 			elif b == VoxelWorldClass.BlockType.LICHEN_ROOT:
 				voxel_world.set_block(coord.x, coord.y, coord.z, VoxelWorldClass.BlockType.AIR, true)
 				if inventory_system:
 					inventory_system.add_item("lichen", 1)
 				acoustic_noise_emitted.emit(hit_pos, 8.0, "harvest")
-				return
+				return true
 
 	# 4. Proximity pickup fallback: if crosshair was slightly off, pick up nearest dropped item within 2.5m
 	var items = get_tree().get_nodes_in_group("dropped_items")
@@ -857,7 +940,9 @@ func _handle_interaction_key() -> void:
 	if closest_item and closest_item.has_method("interact"):
 		closest_item.interact(self)
 		acoustic_noise_emitted.emit(global_position, 3.0, "interact")
-		return
+		return true
+
+	return false
 
 func _handle_right_click_interaction() -> void:
 	if inventory_system == null:
@@ -981,31 +1066,27 @@ func _on_pickaxe_hit_landed(collider: Object, hit_point: Vector3, hit_normal: Ve
 		crack_clear_timer = 4.0
 
 		# Differentiated hit scaling based on block hardness, tool type & pickaxe tier
-		var is_pickaxe = (active_slot == 2)
-		if inventory_system:
-			var cur = inventory_system.get_active_item()
-			if not cur.is_empty() and cur.id == "pickaxe":
-				is_pickaxe = true
+		var is_pickaxe = (pickaxe != null and pickaxe.is_active)
 
 		var is_soft = props.get("is_soft", false)
-		var hits_needed = 1
+		var hits_needed = 2
 
 		if is_pickaxe:
 			var pick_tier = pickaxe.tier if pickaxe else 1
 			var tier_multi = 1.0
 			if pick_tier == 2:
-				tier_multi = 1.8
+				tier_multi = 1.6
 			elif pick_tier >= 3:
-				tier_multi = 3.0
-			var base_hits = max(1, int(round(hardness / 13.0)))
-			hits_needed = max(1, int(ceil(float(base_hits) / tier_multi)))
+				tier_multi = 2.4
+			var base_hits = max(2, int(round(hardness / 10.0)))
+			hits_needed = max(2, int(ceil(float(base_hits) / tier_multi)))
 		else:
 			# Bare hands or non-pickaxe item
 			if is_soft:
-				hits_needed = max(1, int(round(hardness / 8.0)))
+				hits_needed = max(2, int(round(hardness / 8.0)))
 			else:
-				# Hard stone & ores take 18 hits with bare hands!
-				hits_needed = 18
+				# Hard stone & ores take 16 hits with bare hands!
+				hits_needed = 16
 
 		# Update progressive crack decal stage (1 to 5)
 		var stage = clamp(int(ceil(float(current_voxel_hits) / float(hits_needed) * 5.0)), 1, 5)
@@ -1013,11 +1094,25 @@ func _on_pickaxe_hit_landed(collider: Object, hit_point: Vector3, hit_normal: Ve
 
 		if current_voxel_hits >= hits_needed:
 			current_voxel_hits = 0
+			current_target_voxel = Vector3i(999999, 999999, 999999) # Strict target reset: prevents multi-break cascade!
 			_clear_bedrock_crack_decal()
 			if sm and sm.has_method("play_sfx"):
 				sm.play_sfx("block_break", hit_point)
 			if voxel_world.has_method("mine_block"):
 				voxel_world.mine_block(target_coord, pick_dmg, hit_point, hit_normal, not is_pickaxe)
+
+			# Bonus AoE for Stone+ tier pickaxe: clears adjacent soft debris above & below
+			if pickaxe and pickaxe.tier >= PickaxeClass.PickaxeTier.STONE:
+				var adjacent_coords = [
+					target_coord + Vector3i(0, 1, 0),
+					target_coord + Vector3i(0, -1, 0),
+				]
+				for adj in adjacent_coords:
+					var adj_b = voxel_world.get_block(adj.x, adj.y, adj.z)
+					if adj_b != VoxelWorldClass.BlockType.AIR and adj_b != VoxelWorldClass.BlockType.BEDROCK:
+						var adj_props = VoxelWorldClass.BLOCK_PROPS.get(adj_b, {})
+						if adj_props.get("is_soft", false):
+							voxel_world.mine_block(adj, pick_dmg * 0.5, hit_point, hit_normal, false)
 
 func _update_bedrock_crack_decal(pos: Vector3, normal: Vector3, stage: int) -> void:
 	if active_bedrock_crack_mesh == null or not is_instance_valid(active_bedrock_crack_mesh):
@@ -1137,10 +1232,3 @@ func get_current_depth_meters() -> float:
 
 func get_compass_heading_degrees() -> float:
 	return fposmod(-rotation_degrees.y, 360.0)
-
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_PREDELETE:
-		if active_bedrock_crack_mesh and is_instance_valid(active_bedrock_crack_mesh):
-			active_bedrock_crack_mesh.queue_free()
-		if ghost_block_mesh and is_instance_valid(ghost_block_mesh):
-			ghost_block_mesh.queue_free()

@@ -12,13 +12,21 @@ const AudiologRegistryClass = preload("res://scripts/narrative/audiolog_registry
 
 static var _stream_cache: Dictionary = {}
 
-static func get_audiolog_stream(audio_id: String) -> AudioStreamWAV:
+static func get_audiolog_stream(audio_id: String) -> AudioStream:
 	if _stream_cache.has(audio_id):
 		return _stream_cache[audio_id]
 
+	# 1. Check for real spoken Russian audio recording on disk
+	var ogg_path = "res://audio/audiologs/%s.ogg" % audio_id
+	if FileAccess.file_exists(ogg_path):
+		var ogg_stream = AudioStreamOggVorbis.load_from_file(ogg_path)
+		if ogg_stream is AudioStream:
+			_stream_cache[audio_id] = ogg_stream
+			return ogg_stream
+
+	# 2. Fallback to procedural synthesis if file not found
 	var log_data = AudiologRegistryClass.get_audiolog(audio_id)
 	var duration = float(log_data.get("duration", 8.0))
-	# Clamp generated preview duration to 6.0 seconds for instant memory-efficient generation
 	var gen_duration = clampf(duration, 3.0, 6.0)
 	var stream = synthesize_audiolog(audio_id, gen_duration)
 	_stream_cache[audio_id] = stream

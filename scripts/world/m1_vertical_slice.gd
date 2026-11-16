@@ -26,6 +26,7 @@ const FieldJournalViewerClass = preload("res://scripts/narrative/field_journal.g
 const SanityManagerClass = preload("res://scripts/horror/sanity_manager.gd")
 const OrnateUIClass = preload("res://scripts/ui/ornate_ui.gd")
 const SegmentedProgressBarClass = preload("res://scripts/ui/segmented_bar.gd")
+const SleekHUDClass = preload("res://scripts/ui/sleek_hud.gd")
 
 var world_config: Resource
 var sound_manager: Node
@@ -44,8 +45,9 @@ var world_env: WorldEnvironment
 var narrative_manager: Node
 var scenario_manager: Node3D
 
-# Diegetic Ornate Steampunk HUD
+# Sleek Minimalist Subterranean HUD
 var hud_canvas: CanvasLayer
+var sleek_hud_refs: Dictionary = {}
 var depth_label: Label
 var compass_label: Label
 var lantern_fuel_label: Label
@@ -53,7 +55,7 @@ var lantern_fuel_bar: Control
 var objective_label: Label
 var journal_hint_label: Label
 var interact_prompt_label: Label
-var interact_prompt_panel: PanelContainer
+var interact_prompt_panel: Control
 var save_notice_label: Label
 
 # Story Progression State
@@ -69,8 +71,9 @@ func _ready() -> void:
 	_setup_environment()
 	_setup_world()
 	_setup_narrative_and_horror()
-	_setup_player()
 	_setup_diegetic_hud()
+	_setup_player()
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 	print("[M1 Vertical Slice] Level Ready! Player spawned at Approach Tunnel.")
 
@@ -127,6 +130,9 @@ func _setup_world() -> void:
 	level_manager.name = "M1LevelManager"
 	add_child(level_manager)
 	level_manager.build_vertical_slice_world()
+
+	# Re-mesh all carved chunks immediately so the subterranean world is rendered
+	voxel_world.remesh_all_active_chunks()
 
 	# Listen to drainage valve
 	if level_manager.drainage_valve_prop:
@@ -195,7 +201,12 @@ func _setup_player() -> void:
 	add_child(player)
 
 	# Spawn at Zone A (Approach tunnel)
-	player.global_position = Vector3(1.0, 57.0, 0.0)
+	# Tunnel extends along +X (towards Station 4 at x=12).
+	# Face +X (-90 deg around Y) and tilt camera down slightly (-14 deg) towards the lantern and pickaxe on the floor.
+	player.global_position = Vector3(0.4, 57.0, 0.0)
+	player.rotation_degrees = Vector3(0, -90, 0)
+	if player.neck:
+		player.neck.rotation_degrees = Vector3(-14.0, 0, 0)
 	player.voxel_world = voxel_world
 
 	sound_memory_manager.set_player(player)
@@ -220,129 +231,21 @@ func _setup_player() -> void:
 		player.inventory_system.add_item("anchor", 4)
 		player.inventory_system.add_item("canteen", 1)
 		player.inventory_system.add_item("rations", 2)
+	player.set_active_slot(8) # Hands start empty after crash
 
 func _setup_diegetic_hud() -> void:
 	hud_canvas = CanvasLayer.new()
 	hud_canvas.name = "DiegeticHUD"
 	hud_canvas.layer = 90
-
-	# Top-left telemetry container with ornate steampunk frame
-	var panel = PanelContainer.new()
-	panel.position = Vector2(24, 24)
-	panel.custom_minimum_size = Vector2(380, 150)
-	panel.add_theme_stylebox_override("panel", OrnateUIClass.create_main_panel_stylebox())
-
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 6)
-	panel.add_child(vbox)
-
-	var header_banner = OrnateUIClass.create_header_banner("ТЕЛЕМЕТРИЯ // СТАНЦИЯ 4", 32)
-	vbox.add_child(header_banner)
-
-	depth_label = Label.new()
-	depth_label.text = "ГОРИЗОНТ: 1420м // СТАНЦИЯ 4"
-	depth_label.add_theme_color_override("font_color", OrnateUIClass.COLOR_GOLD)
-	depth_label.add_theme_font_size_override("font_size", 12)
-	vbox.add_child(depth_label)
-
-	compass_label = Label.new()
-	compass_label.text = "КОМПАС: [ N 000° ]"
-	compass_label.add_theme_color_override("font_color", OrnateUIClass.COLOR_STEEL)
-	compass_label.add_theme_font_size_override("font_size", 11)
-	vbox.add_child(compass_label)
-
-	# Segmented progress bar for lantern fuel
-	lantern_fuel_bar = SegmentedProgressBarClass.new(16, "amber", "ФОНАРЬ [ТОПЛИВО]")
-	vbox.add_child(lantern_fuel_bar)
-	lantern_fuel_label = lantern_fuel_bar.pct_label
-
-	objective_label = Label.new()
-	objective_label.text = "ЗАДАЧА: Найти аварийный фонарь и кирку геолога"
-	objective_label.add_theme_color_override("font_color", OrnateUIClass.COLOR_AMBER)
-	objective_label.add_theme_font_size_override("font_size", 11)
-	vbox.add_child(objective_label)
-
-	journal_hint_label = Label.new()
-	journal_hint_label.text = "[J] — ПОЛЕВОЙ ЖУРНАЛ"
-	journal_hint_label.add_theme_color_override("font_color", OrnateUIClass.COLOR_MUTED)
-	journal_hint_label.add_theme_font_size_override("font_size", 10)
-	vbox.add_child(journal_hint_label)
-
-	hud_canvas.add_child(panel)
-
-	# Center Crosshair & Framed Interaction Prompt
-	interact_prompt_panel = PanelContainer.new()
-	interact_prompt_panel.set_anchors_preset(Control.PRESET_CENTER)
-	interact_prompt_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	interact_prompt_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	interact_prompt_panel.offset_left = -280
-	interact_prompt_panel.offset_right = 280
-	interact_prompt_panel.offset_top = 36
-	interact_prompt_panel.offset_bottom = 76
-	interact_prompt_panel.add_theme_stylebox_override("panel", OrnateUIClass.create_sub_panel_stylebox())
-	interact_prompt_panel.visible = false
-
-	interact_prompt_label = Label.new()
-	interact_prompt_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	interact_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	interact_prompt_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	interact_prompt_label.add_theme_color_override("font_color", OrnateUIClass.COLOR_GOLD)
-	interact_prompt_label.add_theme_font_size_override("font_size", 12)
-	interact_prompt_label.text = ""
-	interact_prompt_panel.add_child(interact_prompt_label)
-	hud_canvas.add_child(interact_prompt_panel)
-
-	# Ornate Antique Reticle (Center dot + 4 subtle sapphire hash marks)
-	var reticle_center = Control.new()
-	reticle_center.set_anchors_preset(Control.PRESET_CENTER)
-	reticle_center.offset_left = 0
-	reticle_center.offset_top = 0
-	reticle_center.offset_right = 0
-	reticle_center.offset_bottom = 0
-
-	var dot = ColorRect.new()
-	dot.custom_minimum_size = Vector2(3, 3)
-	dot.color = Color(0.90, 0.82, 0.65, 0.85)
-	dot.position = Vector2(-1, -1)
-	reticle_center.add_child(dot)
-
-	# 4 subtle chiseled crosshair ticks
-	var tick_color = Color(0.35, 0.55, 0.80, 0.70)
-	var tick_top = ColorRect.new()
-	tick_top.rect_size = Vector2(1, 3) if "rect_size" in tick_top else Vector2(1, 3)
-	tick_top.custom_minimum_size = Vector2(1, 3)
-	tick_top.position = Vector2(0, -6)
-	tick_top.color = tick_color
-	reticle_center.add_child(tick_top)
-
-	var tick_bottom = ColorRect.new()
-	tick_bottom.custom_minimum_size = Vector2(1, 3)
-	tick_bottom.position = Vector2(0, 4)
-	tick_bottom.color = tick_color
-	reticle_center.add_child(tick_bottom)
-
-	var tick_left = ColorRect.new()
-	tick_left.custom_minimum_size = Vector2(3, 1)
-	tick_left.position = Vector2(-6, 0)
-	tick_left.color = tick_color
-	reticle_center.add_child(tick_left)
-
-	var tick_right = ColorRect.new()
-	tick_right.custom_minimum_size = Vector2(3, 1)
-	tick_right.position = Vector2(4, 0)
-	tick_right.color = tick_color
-	reticle_center.add_child(tick_right)
-
-	hud_canvas.add_child(reticle_center)
-
-	save_notice_label = Label.new()
-	save_notice_label.position = Vector2(24, 185)
-	save_notice_label.add_theme_color_override("font_color", Color(0.45, 0.75, 0.55))
-	save_notice_label.add_theme_font_size_override("font_size", 11)
-	save_notice_label.text = ""
-	hud_canvas.add_child(save_notice_label)
-
 	add_child(hud_canvas)
+
+	sleek_hud_refs = SleekHUDClass.build_hud(hud_canvas)
+	depth_label = sleek_hud_refs.get("depth_label")
+	compass_label = sleek_hud_refs.get("compass_label")
+	objective_label = sleek_hud_refs.get("objective_label")
+	save_notice_label = sleek_hud_refs.get("save_notice")
+	interact_prompt_panel = sleek_hud_refs.get("prompt_ctrl")
+	interact_prompt_label = sleek_hud_refs.get("prompt_label")
 
 func _process(_delta: float) -> void:
 	_update_hud()
@@ -357,36 +260,34 @@ func _update_hud() -> void:
 	var stratum_name = "НЕИЗВЕСТНЫЙ ГОРИЗОНТ"
 	if biome_manager and biome_manager.current_biome:
 		stratum_name = biome_manager.current_biome.display_name.to_upper()
-	depth_label.text = "ГОРИЗОНТ: %4.0fм // %s" % [depth_val, stratum_name]
 
-	# Heading from camera
 	var cam = player.camera if player else null
+	var deg = 0
 	if cam:
-		var deg = posmod(-cam.global_rotation_degrees.y, 360.0)
-		var cardinal = "N"
-		if deg >= 45.0 and deg < 135.0: cardinal = "E"
-		elif deg >= 135.0 and deg < 225.0: cardinal = "S"
-		elif deg >= 225.0 and deg < 315.0: cardinal = "W"
-		compass_label.text = "КОМПАС: [ %s %03.0f° ]" % [cardinal, deg]
+		deg = int(posmod(-cam.global_rotation_degrees.y, 360.0))
 
-	# Lantern Fuel
+	var fuel_pct = 0.0
+	var is_lit = false
 	if player.lantern:
-		var f_val = player.lantern.current_fuel / player.lantern.max_fuel
-		if lantern_fuel_bar:
-			lantern_fuel_bar.set_value(f_val)
-			var status = "ВКЛ" if player.lantern.is_lit else "ВЫКЛ"
-			lantern_fuel_bar.set_title("ФОНАРЬ (%s)" % status)
-	elif lantern_fuel_bar:
-		lantern_fuel_bar.set_value(0.0)
-		lantern_fuel_bar.set_title("ФОНАРЬ (НЕ НАЙДЕН)")
+		fuel_pct = (player.lantern.current_fuel / player.lantern.max_fuel) * 100.0
+		is_lit = player.lantern.is_lit
 
-	# Synchronize active narrative objective
-	if narrative_manager and narrative_manager.story_state and objective_label:
-		var act_obj = narrative_manager.story_state.active_objective_text
-		if act_obj != "":
-			objective_label.text = act_obj
+	var act_obj = "Найти аварийный фонарь и кирку геолога среди обломков"
+	if narrative_manager and narrative_manager.story_state:
+		var n_obj = narrative_manager.story_state.active_objective_text
+		if n_obj != "":
+			act_obj = n_obj
 
-	# Check raycast interaction prompt
+	SleekHUDClass.update_display(
+		sleek_hud_refs,
+		int(round(depth_val)),
+		stratum_name,
+		deg,
+		fuel_pct,
+		is_lit,
+		act_obj
+	)
+
 	_check_interaction_prompt()
 
 func _check_interaction_prompt() -> void:
@@ -403,6 +304,8 @@ func _check_interaction_prompt() -> void:
 	query.collide_with_bodies = true
 	var hit = space.intersect_ray(query)
 
+	var reticle_rect: TextureRect = sleek_hud_refs.get("reticle_rect")
+
 	if hit and hit.collider:
 		var col = hit.collider
 		if col.has_method("get_interaction_prompt"):
@@ -411,8 +314,17 @@ func _check_interaction_prompt() -> void:
 				p_text = "[E] " + p_text
 			interact_prompt_label.text = p_text
 			interact_prompt_panel.visible = true
+			if reticle_rect:
+				var act_tex = SleekHUDClass.get_texture("textures/ui_sleek/sleek_reticle_interact.png")
+				if act_tex:
+					reticle_rect.texture = act_tex
 			return
+
 	interact_prompt_panel.visible = false
+	if reticle_rect:
+		var def_tex = SleekHUDClass.get_texture("textures/ui_sleek/sleek_reticle.png")
+		if def_tex:
+			reticle_rect.texture = def_tex
 
 func _on_drainage_valve_opened() -> void:
 	print("[M1 Level] Drainage valve opened! Draining lower sump...")

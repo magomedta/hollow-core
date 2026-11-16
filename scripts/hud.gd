@@ -82,12 +82,12 @@ var vignette_node: Control
 const LORE_ENTRIES = {
 	"LOG_01_OUTPOST": {
 		"title": "SURVEYOR LOG #01: THE BREACH",
-		"meta": "EXPEDITION 104 // LEAD GEOLOGIST VANE // STRATUM III",
+		"meta": "EXPEDITION 104 — LEAD GEOLOGIST VANE — STRATUM III",
 		"body": "We drilled through 400 meters of subglacial permafrost before the pressure shaft collapsed.\n\nWe expected solid mantle rock, but what we found is an impossible subterranean vault spanning kilometers. There is breathable air here, circulating through deep volcanic fissures.\n\nKeep your pickaxe sharpened and stay alert: the acoustic vibrations of mining echo through the basalt. Something down here reacts to sound."
 	},
 	"LOG_03_PRECURSOR": {
 		"title": "ARCHAEOLOGICAL LOG #03: THE LIVING CORE",
-		"meta": "EXPEDITION 104 // DR. ELENA MARCUS // DEEPSLATE CHASM",
+		"meta": "EXPEDITION 104 — DR. ELENA MARCUS — DEEPSLATE CHASM",
 		"body": "These hexagonal basalt columns were not shaped by volcanic cooling. The stone is carved with harmonic geometric conduits.\n\nThe precursor civilization did not excavate this hollow to shelter from the surface ice age.\n\nThey built these anchors to contain what sleeps at the planetary core. If you descend past the magma mantle, do not disturb the resonance seals."
 	}
 }
@@ -323,7 +323,7 @@ func _update_resource_display() -> void:
 				directive_label.text = "EXPEDITION DIRECTIVE [5/5]: DISCOVER THE ANCIENT PRECURSOR MONOLITH IN CHASM"
 				directive_label.add_theme_color_override("font_color", Color(0.95, 0.82, 0.30))
 			_:
-				directive_label.text = "EXPEDITION COMPLETE // DEEP MONOLITH ACTIVATED // PLANETARY SURVEY COMPLETE"
+				directive_label.text = "EXPEDITION COMPLETE — DEEP MONOLITH ACTIVATED — PLANETARY SURVEY COMPLETE"
 				directive_label.add_theme_color_override("font_color", Color(0.35, 0.95, 0.55))
 
 func _process(_delta: float) -> void:
@@ -359,30 +359,30 @@ func _process(_delta: float) -> void:
 		if vw_node and vw_node.has_method("get_biome_name_at"):
 			sector_str = vw_node.get_biome_name_at(int(player.global_position.x), int(player.global_position.y), int(player.global_position.z))
 		elif player.global_position.y >= 44.0:
-			sector_str = "STRATUM I // THE FROZEN CRUST (SURFACE BLIZZARD)"
+			sector_str = "STRATUM I — THE FROZEN CRUST (SURFACE BLIZZARD)"
 		elif player.global_position.y >= 20.0:
-			sector_str = "STRATUM II // CHILLED KARST & SUBGLACIAL ICE"
+			sector_str = "STRATUM II — CHILLED KARST & SUBGLACIAL ICE"
 		elif player.global_position.y >= 0.0:
-			sector_str = "STRATUM III // THE HOLLOW CORE BASIN"
+			sector_str = "STRATUM III — THE HOLLOW CORE BASIN"
 		elif player.global_position.y >= -28.0:
-			sector_str = "STRATUM IV // BASALTIC DEEPSLATE & PHOSPHOR GROTTO"
+			sector_str = "STRATUM IV — BASALTIC DEEPSLATE & PHOSPHOR GROTTO"
 		else:
-			sector_str = "STRATUM V // THE MAGMA MANTLE & MOLTEN CORE"
+			sector_str = "STRATUM V — THE MAGMA MANTLE & MOLTEN CORE"
 
 		if player.global_position.y >= 44.0:
-			temp_str = "TEMP %d°C // GALE SUB-ZERO PERMAFROST" % int(current_temp_c)
+			temp_str = "TEMP %d°C — GALE SUB-ZERO PERMAFROST" % int(current_temp_c)
 			temp_color = Color(0.72, 0.80, 0.88)
 		elif player.global_position.y >= 20.0:
-			temp_str = "TEMP %+d°C // BOREAL CRYSTAL CAVERN" % int(current_temp_c)
+			temp_str = "TEMP %+d°C — BOREAL CRYSTAL CAVERN" % int(current_temp_c)
 			temp_color = Color(0.78, 0.84, 0.90)
 		elif player.global_position.y >= 0.0:
-			temp_str = "TEMP %+d°C // TEMPERATE BASALT CHAMBERS" % int(current_temp_c)
+			temp_str = "TEMP %+d°C — TEMPERATE BASALT CHAMBERS" % int(current_temp_c)
 			temp_color = Color(0.70, 0.78, 0.85)
 		elif player.global_position.y >= -28.0:
-			temp_str = "TEMP %+d°C // LUMINESCENT ABYSS" % int(current_temp_c)
+			temp_str = "TEMP %+d°C — LUMINESCENT ABYSS" % int(current_temp_c)
 			temp_color = Color(0.25, 0.90, 0.75)
 		else:
-			temp_str = "TEMP %+d°C // CRITICAL VOLCANIC UPWELLING" % int(current_temp_c)
+			temp_str = "TEMP %+d°C — CRITICAL VOLCANIC UPWELLING" % int(current_temp_c)
 			temp_color = Color(1.0, 0.35, 0.15)
 
 		if sector_label:
@@ -409,7 +409,7 @@ func _process(_delta: float) -> void:
 		var status_str = "ACTIVE" if is_lantern_lit else "OFF"
 		if current_fuel_pct <= 0.0:
 			status_str = "DEPLETED"
-		fuel_label.text = "LANTERN // %s  %d%%" % [status_str, int(current_fuel_pct * 100.0)]
+		fuel_label.text = "LANTERN — %s  %d%%" % [status_str, int(current_fuel_pct * 100.0)]
 
 func _update_interaction_ray_prompt() -> void:
 	if interact_prompt_label == null or player == null or not ("camera" in player) or player.camera == null:
@@ -510,14 +510,14 @@ func _build_ui_nodes() -> void:
 	top_left.add_child(depth_label)
 
 	sector_label = Label.new()
-	sector_label.text = "STRATUM III // THE HOLLOW CORE BASIN"
+	sector_label.text = "STRATUM III — THE HOLLOW CORE BASIN"
 	sector_label.add_theme_font_size_override("font_size", 11)
 	sector_label.add_theme_color_override("font_color", Color(0.68, 0.74, 0.82))
 	if ui_font: sector_label.add_theme_font_override("font", ui_font)
 	top_left.add_child(sector_label)
 
 	thermal_label = Label.new()
-	thermal_label.text = "TEMP +17°C // TEMPERATE BASALT"
+	thermal_label.text = "TEMP +17°C — TEMPERATE BASALT"
 	thermal_label.add_theme_font_size_override("font_size", 11)
 	thermal_label.add_theme_color_override("font_color", Color(0.70, 0.78, 0.85))
 	if ui_font: thermal_label.add_theme_font_override("font", ui_font)
@@ -538,7 +538,7 @@ func _build_ui_nodes() -> void:
 	top_right.add_child(fps_label)
 
 	var eng_sub = Label.new()
-	eng_sub.text = "ENGINE // FORWARD+ VULKAN 128M"
+	eng_sub.text = "ENGINE — FORWARD+ VULKAN 128M"
 	eng_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	eng_sub.add_theme_font_size_override("font_size", 10)
 	eng_sub.add_theme_color_override("font_color", Color(0.45, 0.52, 0.58))
@@ -600,7 +600,7 @@ func _build_ui_nodes() -> void:
 	bottom_left.add_child(vitals_container)
 
 	fuel_label = Label.new()
-	fuel_label.text = "LANTERN // ACTIVE  100%"
+	fuel_label.text = "LANTERN — ACTIVE  100%"
 	fuel_label.add_theme_font_size_override("font_size", 11)
 	fuel_label.add_theme_color_override("font_color", Color(0.95, 0.78, 0.42))
 	if ui_font: fuel_label.add_theme_font_override("font", ui_font)
@@ -626,7 +626,7 @@ func _build_ui_nodes() -> void:
 	bottom_right.add_child(resource_label)
 
 	status_label = Label.new()
-	status_label.text = "PRESSURE 1.42 ATM // ACOUSTIC ECHO ACTIVE\nVOXEL STRATIFICATION: UNIFIED 128M DEPTH"
+	status_label.text = "PRESSURE 1.42 ATM — ACOUSTIC ECHO ACTIVE\nVOXEL STRATIFICATION: UNIFIED 128M DEPTH"
 	status_label.add_theme_font_size_override("font_size", 11)
 	status_label.add_theme_color_override("font_color", Color(0.45, 0.52, 0.58))
 	if ui_font: status_label.add_theme_font_override("font", ui_font)
@@ -791,7 +791,7 @@ func _build_lore_modal(parent: Control) -> void:
 	vb.add_child(lore_title)
 
 	lore_meta = Label.new()
-	lore_meta.text = "EXPEDITION 104 // STRATUM III"
+	lore_meta.text = "EXPEDITION 104 — STRATUM III"
 	lore_meta.add_theme_font_size_override("font_size", 10)
 	lore_meta.add_theme_color_override("font_color", Color(0.65, 0.70, 0.78))
 	if ui_font: lore_meta.add_theme_font_override("font", ui_font)
@@ -827,7 +827,7 @@ func _draw_vitals() -> void:
 	var border_col = Color(0.55, 0.44, 0.26, 0.85)
 
 	# 1. Health Bar
-	vitals_container.draw_string(font, Vector2(0, 10), "SURVIVOR VITALS // INTEGRITY", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.92, 0.82, 0.55))
+	vitals_container.draw_string(font, Vector2(0, 10), "SURVIVOR VITALS — INTEGRITY", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.92, 0.82, 0.55))
 	vitals_container.draw_rect(Rect2(0, 14, w, h_bar), bg_col, true)
 	vitals_container.draw_rect(Rect2(0, 14, w, h_bar), border_col, false, 1.5)
 	var hp_pct = clamp(current_hp / max_hp, 0.0, 1.0)
@@ -836,7 +836,7 @@ func _draw_vitals() -> void:
 		vitals_container.draw_rect(Rect2(1, 15, (w - 2) * hp_pct, h_bar - 2), hp_col, true)
 
 	# 2. Hydration Bar
-	vitals_container.draw_string(font, Vector2(0, 33), "GLACIAL RESERVOIR // DEW", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.70, 0.78, 0.85))
+	vitals_container.draw_string(font, Vector2(0, 33), "GLACIAL RESERVOIR — DEW", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.70, 0.78, 0.85))
 	vitals_container.draw_rect(Rect2(0, 37, w, h_bar), bg_col, true)
 	vitals_container.draw_rect(Rect2(0, 37, w, h_bar), border_col, false, 1.5)
 	var water_pct = clamp(current_water / 100.0, 0.0, 1.0)

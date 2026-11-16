@@ -167,20 +167,20 @@ def gen_mossy_stone():
             img[y, x] = col
     save_image("mossy_stone", img)
 
-# 4. Slate Brick: Archaic Precursor Masonry with Inset Channels
+# 4. Slate Brick: Heavy Weathered Ashlar Masonry with Chiseled Bevels & Dark Mortar
 def gen_slate_brick():
     w, h = 64, 64
     img = np.zeros((h, w, 4), dtype=float)
-    c_joint = np.array([18, 20, 24, 255])
-    c_dark  = np.array([34, 38, 44, 255])
-    c_mid1  = np.array([52, 58, 68, 255])
-    c_mid2  = np.array([66, 72, 84, 255])
-    c_hi    = np.array([88, 96, 112, 255])
-    c_rune  = np.array([55, 145, 175, 255]) # Faint cyan rune sheen
+    c_joint = np.array([20, 22, 26, 255])
+    c_dark  = np.array([36, 40, 46, 255])
+    c_mid1  = np.array([54, 60, 68, 255])
+    c_mid2  = np.array([68, 76, 86, 255])
+    c_light = np.array([82, 90, 102, 255])
+    c_hi    = np.array([100, 110, 124, 255])
 
     for y in range(h):
         for x in range(w):
-            # 32x16 large ashlar blocks
+            # 32x16 large ashlar masonry blocks with running bond
             row = y // 16
             col_offset = 16 if (row % 2 == 1) else 0
             bx = (x + col_offset) % 32
@@ -192,21 +192,23 @@ def gen_slate_brick():
             is_bot = (by == 15 and bx > 0)
             is_right = (bx == 31 and by > 0)
 
-            # Center geometric rune carving in select blocks
-            is_rune = (row % 2 == 0) and ((bx >= 14 and bx <= 18 and by >= 6 and by <= 10) and (bx == 16 or by == 8))
-
             micro = hash_noise(x, y, 909)
+            chisel = smooth_noise(x, y, 6.0, 1202)
 
             if is_joint:
                 col = c_joint
-            elif is_rune:
-                col = c_rune
             elif is_top or is_left:
-                col = c_hi if micro > 0.3 else c_mid2
+                col = c_hi if micro > 0.4 else c_light
             elif is_bot or is_right:
                 col = c_dark
             else:
-                col = c_mid2 if micro > 0.6 else c_mid1
+                # Natural mineral grain and subtle quarry chisel marks
+                if chisel > 0.65:
+                    col = c_light if micro > 0.4 else c_mid2
+                elif chisel < 0.35:
+                    col = c_dark if micro > 0.3 else c_mid1
+                else:
+                    col = c_mid2 if micro > 0.5 else c_mid1
             img[y, x] = col
     save_image("slate_brick", img)
 
@@ -297,41 +299,67 @@ def gen_wood_planks():
             img[y, x] = col
     save_image("wood_planks", img)
 
-# 7. Hewn Timber: Organic Log Bark with Vertical Furrows and Lichen
+# 7. Hewn Timber: Heavy Square-Cut Weathered Oak Mine Support Beam with Wrought Iron Strapping
 def gen_hewn_timber():
     w, h = 64, 64
     img = np.zeros((h, w, 4), dtype=float)
-    c_furrow = np.array([36, 24, 16, 255])
-    c_bark_d = np.array([72, 48, 32, 255])
-    c_bark_m = np.array([104, 72, 48, 255])
-    c_bark_l = np.array([136, 96, 66, 255])
-    c_moss   = np.array([58, 98, 62, 255])
+    c_wood_dark   = np.array([40, 28, 20, 255])
+    c_wood_mid    = np.array([58, 42, 30, 255])
+    c_wood_light  = np.array([78, 56, 40, 255])
+    c_wood_hi     = np.array([96, 70, 50, 255])
+
+    c_iron_dark   = np.array([30, 32, 36, 255])
+    c_iron_mid    = np.array([52, 56, 62, 255])
+    c_iron_hi     = np.array([80, 86, 96, 255])
+    c_rivet       = np.array([140, 150, 165, 255])
 
     for y in range(h):
         for x in range(w):
-            # Vertical wavy bark ridges
-            rx = (x + int(math.sin(y * 0.18) * 3.0)) % 16
-            is_furrow = (rx == 0)
-            is_hi = (rx == 1)
-            is_sh = (rx == 15)
+            # Straight vertical wood grain with fine micro-noise (NO wavy sine curves!)
+            grain_noise = hash_noise(x // 2, y * 3, 1101) * 0.35 + hash_noise(x, y // 4, 1102) * 0.65
+            subtle_var  = (hash_noise(x, y, 1103) - 0.5) * 0.15
+            val = np.clip(grain_noise + subtle_var, 0.0, 1.0)
 
-            micro = hash_noise(x, y, 1515)
-            n = smooth_noise(x, y, 6.0, 1616)
+            # Natural longitudinal wood pores
+            pore = 1.0
+            if (x % 7 == 2 or x % 11 == 5) and (hash_noise(x, y // 8, 1104) > 0.45):
+                pore = 0.72
 
-            if is_furrow:
-                col = c_furrow
-            elif is_hi:
-                col = c_bark_l if micro > 0.35 else c_bark_m
-            elif is_sh:
-                col = c_bark_d
+            if val < 0.35:
+                c = c_wood_dark + (c_wood_mid - c_wood_dark) * (val / 0.35)
+            elif val < 0.70:
+                c = c_wood_mid + (c_wood_light - c_wood_mid) * ((val - 0.35) / 0.35)
             else:
-                if n > 0.72 and micro > 0.5:
-                    col = c_moss
-                elif n > 0.45:
-                    col = c_bark_m if micro > 0.3 else c_bark_l
+                c = c_wood_light + (c_wood_hi - c_wood_light) * ((val - 0.70) / 0.30)
+
+            c = c * pore
+
+            # Heavy bevel on block perimeter
+            if y < 2 or y >= 62 or x < 2 or x >= 62:
+                c = c * 0.60
+            elif y == 2 or x == 2:
+                c = c * 1.15
+            elif y == 61 or x == 61:
+                c = c * 0.75
+
+            # Wrought iron reinforcement collar (centered at y: 28..35)
+            if 28 <= y <= 35:
+                if y == 28 or y == 35:
+                    c = c_iron_dark
+                elif y == 29:
+                    c = c_iron_hi
                 else:
-                    col = c_bark_d if micro > 0.4 else c_bark_m
-            img[y, x] = col
+                    c = c_iron_mid
+
+                # Square iron rivets at x: 12, 28, 44, 56
+                for rx in [12, 28, 44, 56]:
+                    if abs(x - rx) <= 2 and abs(y - 32) <= 2:
+                        if abs(x - rx) <= 1 and abs(y - 32) <= 1:
+                            c = c_rivet if (x <= rx and y <= 32) else c_iron_dark
+                        else:
+                            c = c_iron_dark
+
+            img[y, x] = c
     save_image("hewn_timber", img)
 
 # 8. Expedition Cargo Crate: Sturdy Wooden Slats with Wrought Iron Brackets & Stencil

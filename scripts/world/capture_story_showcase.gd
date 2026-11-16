@@ -28,24 +28,51 @@ func _init() -> void:
 	# SHOT 1: Crash Awakening & Empty Hands (TyazhMash-4 Wreckage, Glowing Lantern Prop)
 	# =========================================================================
 	print("[SHOWCASE] Capturing Shot 1: Crash Awakening at TyazhMash-4...")
-	if player:
+	if player and m1_instance.scenario_manager and m1_instance.scenario_manager.lantern_prop:
 		# Empty hands start
+		player.set_active_slot(8)
+		if player.ghost_block_mesh:
+			player.ghost_block_mesh.visible = false
 		if player.pickaxe:
 			player.pickaxe.set_active(false)
 		if player.lantern:
 			player.lantern.set_hand_mode(false)
 			player.lantern.set_lit(false)
 
-		# Positioned inside the twisted cage frame looking at the glowing brass lantern on crate
-		player.global_position = Vector3(1.0, 57.0, 0.0)
-		player.look_at(Vector3(2.2, 56.6, 0.5), Vector3.UP)
+		# Use exact player spawn orientation looking down the tunnel (+X)
+		player.global_position = Vector3(0.4, 57.0, 0.0)
+		player.rotation_degrees = Vector3(0, -90, 0)
 		if neck:
-			neck.rotation_degrees = Vector3(-12.0, 0, 0)
+			neck.rotation_degrees = Vector3(-14.0, 0, 0)
 
 	for i in range(40):
+		if player and player.ghost_block_mesh:
+			player.ghost_block_mesh.visible = false
 		await process_frame
 
 	_save_shot("01_crash_awakening_empty_hands.png")
+
+	# =========================================================================
+	# SHOT 1B: Pickaxe Prop on Floor at Crash Site (Exact hand model on rubble)
+	# =========================================================================
+	print("[SHOWCASE] Capturing Shot 1B: Pickaxe Prop on Rubble Floor...")
+	if player and m1_instance.scenario_manager and m1_instance.scenario_manager.pickaxe_prop:
+		# Stand near pickaxe prop and look directly down at it on the floor
+		player.set_active_slot(8)
+		if player.ghost_block_mesh:
+			player.ghost_block_mesh.visible = false
+		var p_target = m1_instance.scenario_manager.pickaxe_prop.global_position
+		player.global_position = Vector3(p_target.x - 1.0, 57.0, p_target.z)
+		player.look_at(Vector3(p_target.x, 57.0, p_target.z), Vector3.UP)
+		if neck:
+			neck.look_at(p_target, Vector3.UP)
+
+	for i in range(40):
+		if player and player.ghost_block_mesh:
+			player.ghost_block_mesh.visible = false
+		await process_frame
+
+	_save_shot("01b_crash_pickaxe_on_floor.png")
 
 	# =========================================================================
 	# SHOT 2: Glacial Approach Tunnel & Lit Lantern in Hand looking to Station 4
@@ -72,6 +99,22 @@ func _init() -> void:
 	_save_shot("02_glacial_approach_lantern_in_hand.png")
 
 	# =========================================================================
+	# SHOT 2B: Station 4 Drainage Valve & Trench (Anchored pipe & floor pedestal)
+	# =========================================================================
+	print("[SHOWCASE] Capturing Shot 2B: Station 4 Anchored Drainage Valve...")
+	if player:
+		# Standing in Station 4 near door looking across trench at the valve
+		player.global_position = Vector3(13.5, 39.5, -9.5)
+		player.look_at(Vector3(16.0, 39.0, -12.0), Vector3.UP)
+		if neck:
+			neck.rotation_degrees = Vector3(-16.0, 0, 0)
+
+	for i in range(40):
+		await process_frame
+
+	_save_shot("02b_station4_anchored_drainage_valve.png")
+
+	# =========================================================================
 	# SHOT 3: Document D-01 Vintage Inspection (Prokhorov 1894 Journal)
 	# =========================================================================
 	print("[SHOWCASE] Capturing Shot 3: Document D-01 Inspection...")
@@ -85,8 +128,8 @@ func _init() -> void:
 		# Open Document D-01 in full inspection viewer with all 4 arguments
 		m1_instance.document_viewer.show_document(
 			"DOC-01",
-			"ПОЛЕВОЙ ЖУРНАЛ ШУРФА №4 // СМЕНА ПРОХОРОВА (1894)",
-			"14 ОКТЯБРЯ 1894 ГОДА // ГОРИЗОНТ 1420м // ШЛЮЗОВАЯ СТАНЦИЯ 4",
+			"ПОЛЕВОЙ ЖУРНАЛ ШУРФА №4 — СМЕНА ПРОХОРОВА (1894)",
+			"14 ОКТЯБРЯ 1894 ГОДА — ГОРИЗОНТ 1420м — ШЛЮЗОВАЯ СТАНЦИЯ 4",
 			"Водоотливной насос завода «Феникс» встал в третий раз за смену. Ледяная вода из трещины затапливает нижний приямок. Забойщик Смирнов клянётся, что в три часа ночи вода в зумпфе шла вспять, вверх по наклонному штреку.\n\nПри ударе кайлом по базальтовой жиле эхо возвращается не сразу, а с задержкой в три секунды, будто в глубине скалы кто-то отвечает тем же числом ударов. Приказал смене молчать.\n\nКлюч от дренажного байпаса оставил в сейфе конторы. Код замка — год закладки первого шурфа (1924).\n\n— Старший маркшейдер И. В. Прохоров"
 		)
 
@@ -118,6 +161,24 @@ func _init() -> void:
 	# Close field journal
 	if m1_instance.field_journal and m1_instance.field_journal.is_open:
 		m1_instance.field_journal.close_journal()
+
+	for i in range(15):
+		await process_frame
+
+	# =========================================================================
+	# SHOT 4B: Expedition Backpack & Field Workbench (Modal Window [TAB/E])
+	# =========================================================================
+	print("[SHOWCASE] Capturing Shot 4B: Expedition Backpack & Field Workbench...")
+	if player and player.inventory_system:
+		player.inventory_system.set_open(true)
+
+	for i in range(40):
+		await process_frame
+
+	_save_shot("04b_expedition_backpack_workbench.png")
+
+	if player and player.inventory_system:
+		player.inventory_system.set_open(false)
 
 	for i in range(15):
 		await process_frame

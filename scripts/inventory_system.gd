@@ -27,6 +27,11 @@ var craft_grid: Array = [{}, {}, {}, {}]
 var craft_output: Dictionary = {}
 
 # UI Nodes
+var hud_hotbar_root: Control
+var hud_hotbar_container: HBoxContainer
+var hud_hotbar_slots: Array = []
+var modal_root: Control
+
 var root_panel: PanelContainer
 var backpack_container: GridContainer
 var hotbar_container: HBoxContainer
@@ -282,7 +287,8 @@ const ITEM_REGISTRY = {
 
 
 func _ready() -> void:
-	layer = 25
+	layer = 85
+	visible = true
 	_init_slots()
 	_populate_starting_kit()
 	_build_ui()
@@ -322,7 +328,11 @@ func toggle() -> void:
 
 func set_open(open_state: bool) -> void:
 	is_open = open_state
-	visible = is_open
+	visible = true # Always keep layer active so HUD hotbar is drawn
+	if modal_root:
+		modal_root.visible = is_open
+	if hud_hotbar_root:
+		hud_hotbar_root.visible = not is_open
 
 	if is_open:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -335,6 +345,7 @@ func set_open(open_state: bool) -> void:
 			add_item(cursor_stack.id, cursor_stack.count)
 			cursor_stack = {}
 		_hide_tooltip()
+		_refresh_all_slots()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.is_pressed():
@@ -425,33 +436,105 @@ func add_item(item_id: String, count: int = 1) -> int:
 # --- UI Layout Construction ---
 
 func _build_ui() -> void:
+	# -------------------------------------------------------------------------
+	# 1. Permanent In-Game HUD Hotbar (Always visible during regular exploration)
+	# -------------------------------------------------------------------------
+	hud_hotbar_root = Control.new()
+	hud_hotbar_root.name = "HUDHotbarRoot"
+	hud_hotbar_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_hotbar_root.anchor_left = 0.5
+	hud_hotbar_root.anchor_right = 0.5
+	hud_hotbar_root.anchor_top = 1.0
+	hud_hotbar_root.anchor_bottom = 1.0
+	hud_hotbar_root.offset_left = -230
+	hud_hotbar_root.offset_right = 230
+	hud_hotbar_root.offset_top = -96
+	hud_hotbar_root.offset_bottom = -12
+	hud_hotbar_root.custom_minimum_size = Vector2(460, 84)
+	add_child(hud_hotbar_root)
+
+	var hud_vbox = VBoxContainer.new()
+	hud_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_vbox.add_theme_constant_override("separation", 4)
+	hud_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	hud_hotbar_root.add_child(hud_vbox)
+
+	hud_hotbar_container = HBoxContainer.new()
+	hud_hotbar_container.name = "HUDHotbarSlots"
+	hud_hotbar_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_hotbar_container.add_theme_constant_override("separation", 6)
+	hud_hotbar_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	hud_vbox.add_child(hud_hotbar_container)
+
+	hud_hotbar_slots.clear()
+	for i in range(HOTBAR_COUNT):
+		var slot_p = _create_hud_slot_panel(i)
+		hud_hotbar_container.add_child(slot_p)
+		hud_hotbar_slots.append(slot_p)
+
+	# Minimalist Key Hint below slots
+	var hint_lbl = Label.new()
+	hint_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint_lbl.text = "[ 1-8 / КОЛЕСО МЫШИ ] ВЫБОР   •   [ TAB / E ] РЮКЗАК И КРАФТ"
+	hint_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint_lbl.add_theme_color_override("font_color", Color(0.58, 0.68, 0.78, 0.75))
+	hint_lbl.add_theme_font_size_override("font_size", 10)
+	hud_vbox.add_child(hint_lbl)
+
+	# -------------------------------------------------------------------------
+	# 2. Modal Window: Expedition Backpack & Field Workbench
+	# -------------------------------------------------------------------------
+	modal_root = Control.new()
+	modal_root.name = "ModalRoot"
+	modal_root.anchor_left = 0.0
+	modal_root.anchor_top = 0.0
+	modal_root.anchor_right = 1.0
+	modal_root.anchor_bottom = 1.0
+	modal_root.offset_left = 0
+	modal_root.offset_top = 0
+	modal_root.offset_right = 0
+	modal_root.offset_bottom = 0
+	modal_root.visible = false
+	add_child(modal_root)
+
 	# Full-screen dark translucent backdrop
 	var bg = ColorRect.new()
 	bg.name = "Backdrop"
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.color = Color(0.04, 0.05, 0.07, 0.72)
-	add_child(bg)
+	bg.anchor_left = 0.0
+	bg.anchor_top = 0.0
+	bg.anchor_right = 1.0
+	bg.anchor_bottom = 1.0
+	bg.offset_left = 0
+	bg.offset_top = 0
+	bg.offset_right = 0
+	bg.offset_bottom = 0
+	bg.color = Color(0.015, 0.02, 0.03, 0.82)
+	modal_root.add_child(bg)
 
 	# Main Central Card
 	root_panel = PanelContainer.new()
 	root_panel.name = "RootPanel"
-	root_panel.set_anchors_preset(Control.PRESET_CENTER)
+	root_panel.anchor_left = 0.5
+	root_panel.anchor_right = 0.5
+	root_panel.anchor_top = 0.5
+	root_panel.anchor_bottom = 0.5
+	root_panel.offset_left = -420
+	root_panel.offset_right = 420
+	root_panel.offset_top = -355
+	root_panel.offset_bottom = 355
 	root_panel.custom_minimum_size = Vector2(840, 710)
-	root_panel.position = Vector2(-420, -355)
 
 	var panel_style = StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.06, 0.07, 0.09, 0.98)
-	panel_style.border_color = Color(0.82, 0.65, 0.32, 0.95)
-	panel_style.border_width_left = 3
-	panel_style.border_width_right = 3
-	panel_style.border_width_top = 3
-	panel_style.border_width_bottom = 3
-	panel_style.corner_radius_top_left = 6
-	panel_style.corner_radius_top_right = 6
-	panel_style.corner_radius_bottom_left = 6
-	panel_style.corner_radius_bottom_right = 6
-	panel_style.shadow_color = Color(0, 0, 0, 0.75)
+	panel_style.bg_color = Color(0.04, 0.05, 0.07, 0.98)
+	panel_style.border_color = Color(0.65, 0.52, 0.32, 0.90) # Fine etched brass border
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(4)
+	panel_style.shadow_color = Color(0, 0, 0, 0.85)
 	panel_style.shadow_size = 28
+	panel_style.content_margin_left = 24
+	panel_style.content_margin_right = 24
+	panel_style.content_margin_top = 20
+	panel_style.content_margin_bottom = 20
 	root_panel.add_theme_stylebox_override("panel", panel_style)
 	bg.add_child(root_panel)
 
@@ -463,9 +546,9 @@ func _build_ui() -> void:
 	# Header Bar
 	var header = HBoxContainer.new()
 	var title = Label.new()
-	title.text = "EXPEDITION INVENTORY"
+	title.text = "ЭКСПЕДИЦИОННЫЙ РЮКЗАК И СНАРЯЖЕНИЕ"
 	title.add_theme_color_override("font_color", Color(0.92, 0.78, 0.42))
-	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_font_size_override("font_size", 15)
 	header.add_child(title)
 
 	var spacer = Control.new()
@@ -473,7 +556,7 @@ func _build_ui() -> void:
 	header.add_child(spacer)
 
 	var close_btn = Button.new()
-	close_btn.text = " [ESC] "
+	close_btn.text = " [ESC / E] ЗАКРЫТЬ "
 	close_btn.flat = true
 	close_btn.add_theme_color_override("font_color", Color(0.65, 0.70, 0.78))
 	close_btn.pressed.connect(func(): set_open(false))
@@ -487,7 +570,7 @@ func _build_ui() -> void:
 	# Left: 2x2 Field Crafting Box
 	var craft_box = VBoxContainer.new()
 	var craft_label = Label.new()
-	craft_label.text = "FIELD WORKBENCH"
+	craft_label.text = "ПОЛЕВОЙ ВЕРСТАК (2x2)"
 	craft_label.add_theme_color_override("font_color", Color(0.70, 0.75, 0.82))
 	craft_label.add_theme_font_size_override("font_size", 11)
 	craft_box.add_child(craft_label)
@@ -519,7 +602,7 @@ func _build_ui() -> void:
 	# Right: Visual Icon-Based Quick Recipes
 	var quick_box = VBoxContainer.new()
 	var quick_label = Label.new()
-	quick_label.text = "QUICK FABRICATE"
+	quick_label.text = "БЫСТРОЕ ИЗГОТОВЛЕНИЕ"
 	quick_label.add_theme_color_override("font_color", Color(0.70, 0.75, 0.82))
 	quick_label.add_theme_font_size_override("font_size", 11)
 	quick_box.add_child(quick_label)
@@ -527,15 +610,15 @@ func _build_ui() -> void:
 	var recipes_hbox = HBoxContainer.new()
 	recipes_hbox.add_theme_constant_override("separation", 8)
 
-	var r1 = _create_recipe_button("torch", 4, {"timber": 1, "phosphor": 1}, "Carbide Torches", "Placeable cave illumination torches.")
-	var r2 = _create_recipe_button("planks", 4, {"timber": 1}, "Wooden Planks", "Lightweight wooden construction material.")
-	var r3 = _create_recipe_button("pickaxe", 1, {"timber": 2, "cobblestone": 3}, "Prospector Pickaxe", "Excavation tool to mine cavern stone and mineral ores.")
-	var r4 = _create_recipe_button("cobblestone", 4, {"cobblestone": 4}, "Reinforced Cobble", "Durable stone blocks for masonry ramps and walls.")
-	var r5 = _create_recipe_button("rations", 1, {"mushroom": 1, "lichen": 1}, "Expedition Stew", "Nutrient-rich field ration (+50 Satiety).")
-	var r6 = _create_recipe_button("flare", 2, {"phosphor": 1, "iron": 1}, "Signal Flare", "High-intensity pyrotechnic flare to illuminate vast abyss chasms.")
-	var r7 = _create_recipe_button("salve", 1, {"mushroom": 2, "water": 1}, "Restorative Salve", "Potent antiseptic balm (+50 Health).")
-	var r8 = _create_recipe_button("grappling_rope", 1, {"iron": 2, "lichen": 2}, "Grappling Hook", "Steel hook with hemp cord for scaling vertical subterranean cliffs.")
-	var r9 = _create_recipe_button("dynamite", 1, {"coal": 2, "timber": 1}, "Blasting Dynamite", "Demolition explosive charge to shatter solid rock veins.")
+	var r1 = _create_recipe_button("torch", 4, {"timber": 1, "phosphor": 1}, "Факелы", "Осветительные карбидные факелы.")
+	var r2 = _create_recipe_button("planks", 4, {"timber": 1}, "Доски", "Деревянные доски для настилов и лестниц.")
+	var r3 = _create_recipe_button("pickaxe", 1, {"timber": 2, "cobblestone": 3}, "Кирка геолога", "Инструмент для добычи руды и скалы.")
+	var r4 = _create_recipe_button("cobblestone", 4, {"cobblestone": 4}, "Булыжник", "Прочные блоки для укрепления штреков.")
+	var r5 = _create_recipe_button("rations", 1, {"mushroom": 1, "lichen": 1}, "Похлёбка", "Полевой рацион исследователя (+50 Сытость).")
+	var r6 = _create_recipe_button("flare", 2, {"phosphor": 1, "iron": 1}, "Сигнальный фальшфейер", "Осветительный фальшфейер для бездны.")
+	var r7 = _create_recipe_button("salve", 1, {"mushroom": 2, "water": 1}, "Бальзам", "Антисептический целебный бальзам (+50 Здоровье).")
+	var r8 = _create_recipe_button("grappling_rope", 1, {"iron": 2, "lichen": 2}, "Кошка с тросом", "Стальной крюк для подъема по скалам.")
+	var r9 = _create_recipe_button("dynamite", 1, {"coal": 2, "timber": 1}, "Динамит", "Взрывной заряд для дробления монолита.")
 
 	recipes_hbox.add_child(r1)
 	recipes_hbox.add_child(r2)
@@ -557,7 +640,7 @@ func _build_ui() -> void:
 
 	# Backpack 24-slot grid (3 rows x 8 columns)
 	var bp_label = Label.new()
-	bp_label.text = "BACKPACK"
+	bp_label.text = "ОТСЕК РЮКЗАКА"
 	bp_label.add_theme_color_override("font_color", Color(0.70, 0.75, 0.82))
 	bp_label.add_theme_font_size_override("font_size", 11)
 	main_vbox.add_child(bp_label)
@@ -575,7 +658,7 @@ func _build_ui() -> void:
 
 	# Hotbar 8-slot strip
 	var hb_label = Label.new()
-	hb_label.text = "EQUIPMENT BELT (1-8)"
+	hb_label.text = "ПОЯС СНАРЯЖЕНИЯ (1-8)"
 	hb_label.add_theme_color_override("font_color", Color(0.92, 0.78, 0.42))
 	hb_label.add_theme_font_size_override("font_size", 11)
 	main_vbox.add_child(hb_label)
@@ -613,7 +696,7 @@ func _build_ui() -> void:
 	cp_lbl.add_theme_constant_override("shadow_offset_x", 1)
 	cp_lbl.add_theme_constant_override("shadow_offset_y", 1)
 	cursor_preview.add_child(cp_lbl)
-	add_child(cursor_preview)
+	modal_root.add_child(cursor_preview)
 
 func _create_slot_button(slot_idx: int) -> Button:
 	var btn = Button.new()
@@ -997,25 +1080,126 @@ func _hide_tooltip() -> void:
 		tooltip_panel.visible = false
 
 func _refresh_all_slots() -> void:
-	# 1. Hotbar slots
+	# 1. Hotbar slots in modal
 	if hotbar_container:
 		for i in range(HOTBAR_COUNT):
 			var btn: Button = hotbar_container.get_child(i)
 			var is_active = (i == active_hotbar_index)
 			_render_slot_btn(btn, slots[i], is_active, str(i + 1))
 
-	# 2. Backpack slots
+	# 2. Backpack slots in modal
 	if backpack_container:
 		for i in range(BACKPACK_COUNT):
 			var btn: Button = backpack_container.get_child(i)
 			var slot_idx = HOTBAR_COUNT + i
 			_render_slot_btn(btn, slots[slot_idx], false)
 
-	# 3. Crafting grid
+	# 3. Crafting grid in modal
 	if craft_grid_container:
 		for i in range(4):
 			var btn: Button = craft_grid_container.get_child(i)
 			_render_slot_btn(btn, craft_grid[i], false)
+
+	# 4. Permanent On-Screen HUD Hotbar slots
+	if hud_hotbar_slots.size() == HOTBAR_COUNT:
+		for i in range(HOTBAR_COUNT):
+			var slot_p: PanelContainer = hud_hotbar_slots[i]
+			var is_active = (i == active_hotbar_index)
+			_render_hud_slot_panel(slot_p, slots[i], is_active, str(i + 1))
+
+func _create_hud_slot_panel(slot_idx: int) -> PanelContainer:
+	var panel = PanelContainer.new()
+	panel.name = "HUDSlot_%d" % slot_idx
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.custom_minimum_size = Vector2(50, 50)
+
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.04, 0.06, 0.09, 0.88)
+	style.border_color = Color(0.35, 0.45, 0.55, 0.45)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(3)
+	panel.add_theme_stylebox_override("panel", style)
+
+	var content = Control.new()
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.custom_minimum_size = Vector2(50, 50)
+	panel.add_child(content)
+
+	# Hotkey number in top-left
+	var key_lbl = Label.new()
+	key_lbl.name = "KeyLabel"
+	key_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	key_lbl.text = str(slot_idx + 1)
+	key_lbl.position = Vector2(4, 2)
+	key_lbl.add_theme_color_override("font_color", Color(0.60, 0.70, 0.80, 0.85))
+	key_lbl.add_theme_font_size_override("font_size", 10)
+	content.add_child(key_lbl)
+
+	# Centered item icon
+	var icon = TextureRect.new()
+	icon.name = "ItemIcon"
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.custom_minimum_size = Vector2(32, 32)
+	icon.position = Vector2(9, 9)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	content.add_child(icon)
+
+	# Item count badge in bottom-right
+	var count_lbl = Label.new()
+	count_lbl.name = "CountLabel"
+	count_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	count_lbl.position = Vector2(8, 30)
+	count_lbl.custom_minimum_size = Vector2(38, 16)
+	count_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	count_lbl.add_theme_color_override("font_color", Color(0.96, 0.96, 0.98, 0.95))
+	count_lbl.add_theme_color_override("font_shadow_color", Color(0.02, 0.03, 0.05, 0.9))
+	count_lbl.add_theme_constant_override("shadow_offset_x", 1)
+	count_lbl.add_theme_constant_override("shadow_offset_y", 1)
+	count_lbl.add_theme_font_size_override("font_size", 11)
+	content.add_child(count_lbl)
+
+	return panel
+
+func _render_hud_slot_panel(panel: PanelContainer, item: Dictionary, is_active: bool, key_str: String) -> void:
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.set_corner_radius_all(3)
+	if is_active:
+		style.bg_color = Color(0.12, 0.10, 0.08, 0.95)
+		style.border_color = Color(0.95, 0.78, 0.35, 0.98) # Warm gold active highlight
+		style.set_border_width_all(2)
+		style.shadow_color = Color(0.95, 0.78, 0.35, 0.30)
+		style.shadow_size = 6
+	else:
+		style.bg_color = Color(0.04, 0.06, 0.09, 0.85)
+		style.border_color = Color(0.32, 0.40, 0.50, 0.45) # Subtle slate hairline
+		style.set_border_width_all(1)
+	panel.add_theme_stylebox_override("panel", style)
+
+	var content = panel.get_child(0)
+	if content:
+		var key_lbl: Label = content.get_node_or_null("KeyLabel")
+		var icon: TextureRect = content.get_node_or_null("ItemIcon")
+		var count_lbl: Label = content.get_node_or_null("CountLabel")
+
+		if key_lbl:
+			key_lbl.text = key_str
+			if is_active:
+				key_lbl.add_theme_color_override("font_color", Color(0.98, 0.82, 0.40))
+			else:
+				key_lbl.add_theme_color_override("font_color", Color(0.55, 0.65, 0.75, 0.75))
+
+		if icon:
+			if item.is_empty():
+				icon.texture = null
+			else:
+				icon.texture = PixelTextureGenerator.get_item_icon(item.id)
+
+		if count_lbl:
+			if item.is_empty() or item.count <= 1:
+				count_lbl.text = ""
+			else:
+				count_lbl.text = str(item.count)
 
 func _render_slot_btn(btn: Button, item: Dictionary, is_active: bool, hotkey_badge: String = "") -> void:
 	btn.text = "" # Keep text empty so 32x32 pixel icon is 100% visible and unoccluded

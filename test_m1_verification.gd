@@ -179,14 +179,15 @@ func _test_2_lantern_and_fuel() -> void:
 func _test_3_item_pickup_bug_fix() -> void:
 	print("\n[TEST 3] Item Pickup Bug Fix (Area3D Raycast & Dual Key E/F)...")
 
-	# Spawn a test dropped item right in front of the player's camera
+	# Spawn a test dropped item in front of player
 	var drop = DroppedItemClass.new()
 	drop.item_type = "phosphor"
 	drop.amount = 4
-	drop.position = player.global_position + Vector3(0, 0.5, -1.8)
+	drop.position = player.global_position + Vector3(0, 0.5, 1.2)
 	m1_root.add_child(drop)
 
-	await process_frame # allow _ready to execute and add to groups
+	await physics_frame
+	await physics_frame
 
 	var pre_count = player.inventory_system.get_item_count("phosphor") if player.inventory_system else 0
 
@@ -199,7 +200,6 @@ func _test_3_item_pickup_bug_fix() -> void:
 	q.collide_with_areas = true
 	q.collide_with_bodies = true
 	var hit = space.intersect_ray(q)
-
 	var ray_detected_item = (hit and hit.collider == drop)
 
 	# Trigger collection via interaction
@@ -213,7 +213,7 @@ func _test_3_item_pickup_bug_fix() -> void:
 			ray_detected_item, pre_count, post_count
 		])
 	else:
-		_record_fail("Test 3", "Item pickup failed: detected=%s, count=%d->%d" % [ray_detected_item, pre_count, post_count])
+		_record_fail("Test 3", "Item pickup failed: detected=%s (hit=%s), count=%d->%d" % [ray_detected_item, str(hit), pre_count, post_count])
 
 # -----------------------------------------------------------------------------
 # TEST 4: Metal Wall Anchor System (Sandbox Element)

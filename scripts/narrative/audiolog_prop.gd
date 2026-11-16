@@ -49,33 +49,61 @@ func _setup_audio_player() -> void:
 	add_child(audio_player_3d)
 
 func _build_visuals() -> void:
-	# 1. Cassette body (Weathered Bakelite / plastic)
-	cassette_mesh = MeshInstance3D.new()
-	var mesh = BoxMesh.new()
-	mesh.size = Vector3(0.28, 0.06, 0.18)
-	cassette_mesh.mesh = mesh
+	# Handcrafted Low-Poly Vintage Compact Cassette Prop
+	var cassette_root = Node3D.new()
+	cassette_root.name = "CassetteModel"
+	add_child(cassette_root)
 
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.18, 0.20, 0.22, 1.0)
-	mat.roughness = 0.65
-	cassette_mesh.material_override = mat
-	add_child(cassette_mesh)
+	var scene_res = load("res://models/cassette_tape.glb")
+	if scene_res:
+		var inst = scene_res.instantiate()
+		inst.scale = Vector3(1.35, 1.35, 1.35)
+		inst.position = Vector3(0, 0.008, 0)
+		cassette_root.add_child(inst)
+	else:
+		# Fallback basic mesh
+		var shell_mat = StandardMaterial3D.new()
+		shell_mat.albedo_color = Color(0.14, 0.15, 0.17, 1.0)
+		shell_mat.roughness = 0.50
 
-	# 2. Spools (white nylon)
-	for offset_x in [-0.07, 0.07]:
-		var spool = MeshInstance3D.new()
-		var cyl = CylinderMesh.new()
-		cyl.top_radius = 0.035
-		cyl.bottom_radius = 0.035
-		cyl.height = 0.065
-		cyl.radial_segments = 8
-		spool.mesh = cyl
+		cassette_mesh = MeshInstance3D.new()
+		var mesh = BoxMesh.new()
+		mesh.size = Vector3(0.18, 0.022, 0.115)
+		cassette_mesh.mesh = mesh
+		cassette_mesh.material_override = shell_mat
+		cassette_mesh.position = Vector3(0, 0.011, 0)
+		cassette_root.add_child(cassette_mesh)
 
-		var sp_mat = StandardMaterial3D.new()
-		sp_mat.albedo_color = Color(0.85, 0.85, 0.82)
-		spool.material_override = sp_mat
-		spool.position = Vector3(offset_x, 0.005, 0.0)
-		add_child(spool)
+	# Glowing amber phosphor indicator
+	var led = MeshInstance3D.new()
+	var led_box = BoxMesh.new()
+	led_box.size = Vector3(0.008, 0.024, 0.008)
+	led.mesh = led_box
+	var led_mat = StandardMaterial3D.new()
+	led_mat.albedo_color = Color(1.0, 0.70, 0.20, 1.0)
+	led_mat.emission_enabled = true
+	led_mat.emission = Color(1.0, 0.65, 0.15, 1.0)
+	led_mat.emission_energy_multiplier = 2.0
+	led.material_override = led_mat
+	led.position = Vector3(0.065, 0.012, -0.038)
+	cassette_root.add_child(led)
+
+	# Soft warm area light around tape
+	var light = OmniLight3D.new()
+	light.light_color = Color(1.0, 0.72, 0.35)
+	light.light_energy = 0.65
+	light.omni_range = 1.8
+	light.omni_attenuation = 1.2
+	light.position = Vector3(0, 0.08, 0)
+	add_child(light)
+
+	# Subtle point light so the cassette is visible in pitch darkness
+	var led_light = OmniLight3D.new()
+	led_light.light_color = Color(1.0, 0.70, 0.20)
+	led_light.light_energy = 0.40
+	led_light.omni_range = 1.2
+	led_light.position = Vector3(0.065, 0.030, -0.038)
+	cassette_root.add_child(led_light)
 
 func get_interaction_prompt() -> String:
 	var log_data = AudiologRegistryClass.get_audiolog(audio_tape_id)

@@ -73,7 +73,7 @@ func _build_ui() -> void:
 	var header_hbox = HBoxContainer.new()
 	header_hbox.add_theme_constant_override("separation", 12)
 	
-	var header_banner = OrnateUIClass.create_header_banner("ПОЛЕВОЙ ЖУРНАЛ ГЕОФИЗИКА // Д-Р ЭДВАРД ВЕЙН", 38)
+	var header_banner = OrnateUIClass.create_header_banner("ПОЛЕВОЙ ЖУРНАЛ ГЕОФИЗИКА — Д-Р ЭДВАРД ВЕЙН", 38)
 	header_hbox.add_child(header_banner)
 
 	var close_hint = Label.new()
@@ -175,10 +175,11 @@ func _switch_tab(tab_idx: int) -> void:
 	# Highlight active button
 	var btns = [tab_btn_quests, tab_btn_docs, tab_btn_audio, tab_btn_clues]
 	for i in range(btns.size()):
-		if i == current_tab:
-			btns[i].modulate = Color(1.0, 0.85, 0.45)
-		else:
-			btns[i].modulate = Color(0.70, 0.74, 0.80)
+		if btns[i] != null:
+			if i == current_tab:
+				btns[i].modulate = Color(1.0, 0.85, 0.45)
+			else:
+				btns[i].modulate = Color(0.70, 0.74, 0.80)
 
 	_render_content()
 
@@ -217,7 +218,7 @@ func _render_quests_tab(state: Resource) -> void:
 	q_card.add_child(q_vbox)
 
 	var act_header = Label.new()
-	act_header.text = "АКТУАЛЬНАЯ ЗАДАЧА // АКТ %d" % (state.current_act if state else 1)
+	act_header.text = "АКТУАЛЬНАЯ ЗАДАЧА — АКТ %d" % (state.current_act if state else 1)
 	act_header.add_theme_color_override("font_color", OrnateUIClass.COLOR_AMBER)
 	act_header.add_theme_font_size_override("font_size", 13)
 	q_vbox.add_child(act_header)
@@ -320,7 +321,7 @@ func _open_document(doc_id: String) -> void:
 		viewer.show_document(
 			doc_id,
 			doc_data.get("title", "").to_upper(),
-			"%s // %s" % [doc_data.get("date", ""), doc_data.get("author", "")],
+			"%s — %s" % [doc_data.get("date", ""), doc_data.get("author", "")],
 			doc_data.get("primary_lore", "")
 		)
 
@@ -330,7 +331,7 @@ func _open_document(doc_id: String) -> void:
 func _render_audiologs_tab(state: Resource) -> void:
 	var played = state.played_audiologs if state else []
 	var count_lbl = Label.new()
-	count_lbl.text = "ПОЛЕВОЙ ФОНОГРАФ // НАЙДЕНО ПЛЕНОК: %d / 20" % played.size()
+	count_lbl.text = "ПОЛЕВОЙ ФОНОГРАФ — НАЙДЕНО ПЛЕНОК: %d / 20" % played.size()
 	count_lbl.add_theme_color_override("font_color", Color(0.92, 0.74, 0.35))
 	count_lbl.add_theme_font_size_override("font_size", 13)
 	content_container.add_child(count_lbl)
@@ -349,7 +350,7 @@ func _render_audiologs_tab(state: Resource) -> void:
 		var h_line = HBoxContainer.new()
 		var title_lbl = Label.new()
 		if is_unlocked:
-			var freq_str = " // %.1f Гц" % log_data.get("frequency", 0.0) if log_data.get("frequency", 0.0) > 0.0 else ""
+			var freq_str = " — %.1f Гц" % log_data.get("frequency", 0.0) if log_data.get("frequency", 0.0) > 0.0 else ""
 			title_lbl.text = "[%s]  %s (%s)%s" % [audio_id, log_data.get("title", ""), log_data.get("date", ""), freq_str]
 			title_lbl.add_theme_color_override("font_color", OrnateUIClass.COLOR_GOLD)
 			title_lbl.add_theme_font_size_override("font_size", 12)
@@ -462,7 +463,7 @@ func _render_clues_tab(state: Resource) -> void:
 	var secrets_hdr = Label.new()
 	var sec_count = state.discovered_secrets.size() if state else 0
 	var room_count = state.discovered_secret_rooms.size() if state else 0
-	secrets_hdr.text = "СЕКРЕТЫ МИРА // ПАСХАЛКИ: %d / 20  |  ТАЙНЫЕ ПОМЕЩЕНИЯ: %d / 5" % [sec_count, room_count]
+	secrets_hdr.text = "СЕКРЕТЫ МИРА — ПАСХАЛКИ: %d / 20  |  ТАЙНЫЕ ПОМЕЩЕНИЯ: %d / 5" % [sec_count, room_count]
 	secrets_hdr.add_theme_color_override("font_color", Color(0.60, 0.65, 0.72))
 	secrets_hdr.add_theme_font_size_override("font_size", 12)
 	content_container.add_child(secrets_hdr)

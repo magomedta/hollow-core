@@ -19,6 +19,8 @@ enum PickaxeTier {
 var is_active: bool = false
 var is_swinging: bool = false
 var swing_timer: float = 0.0
+var swing_cooldown_timer: float = 0.0
+const SWING_COOLDOWN_DURATION: float = 0.04
 var has_hit_in_current_swing: bool = false
 
 var natural_pos: Vector3 = Vector3(0.24, -0.20, -0.40)
@@ -88,6 +90,7 @@ func _update_tier_visuals() -> void:
 func set_active(active: bool) -> void:
 	is_active = active
 	visible = is_active
+	swing_cooldown_timer = 0.20 # Weapon swap cooldown prevents instant swing cancel
 	if not is_active:
 		is_swinging = false
 		swing_timer = 0.0
@@ -122,81 +125,61 @@ func _construct_geologist_mattock() -> void:
 	aged_brass_mat.metallic = 0.80
 	aged_brass_mat.roughness = 0.42
 
-	var sleeve_mat = StandardMaterial3D.new()
-	sleeve_mat.albedo_texture = PixelTextureGenerator.get_sleeve_texture()
-	sleeve_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	sleeve_mat.uv1_triplanar = true
-	sleeve_mat.uv1_scale = Vector3(8.0, 8.0, 8.0)
-	sleeve_mat.roughness = 0.88
+	# Clean low-poly materials (warm rich explorer aesthetic, no noisy triplanar!)
+	var sleeve_mat_clean = StandardMaterial3D.new()
+	sleeve_mat_clean.albedo_color = Color(0.20, 0.23, 0.26, 1.0) # Dark charcoal-slate explorer wool
+	sleeve_mat_clean.roughness = 0.90
 
-	var glove_mat = StandardMaterial3D.new()
-	glove_mat.albedo_texture = PixelTextureGenerator.get_glove_texture()
-	glove_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	glove_mat.uv1_triplanar = true
-	glove_mat.uv1_scale = Vector3(8.0, 8.0, 8.0)
-	glove_mat.roughness = 0.82
+	var cuff_mat_clean = StandardMaterial3D.new()
+	cuff_mat_clean.albedo_color = Color(0.24, 0.17, 0.12, 1.0) # Dark leather cuff
+	cuff_mat_clean.roughness = 0.70
+
+	var glove_mat_clean = StandardMaterial3D.new()
+	glove_mat_clean.albedo_color = Color(0.48, 0.34, 0.22, 1.0) # Warm saddle brown leather
+	glove_mat_clean.roughness = 0.65
+	glove_mat_clean.metallic = 0.10
+
+	var brass_trim = StandardMaterial3D.new()
+	brass_trim.albedo_color = Color(0.85, 0.70, 0.35, 1.0)
+	brass_trim.metallic = 0.85
+	brass_trim.roughness = 0.35
 
 	# ARM HIERARCHY: Articulated from shoulder/elbow off-screen to hand
 	var arm_root = Node3D.new()
 	arm_root.name = "PlayerArm"
 	arm_root.position = Vector3(0.06, -0.16, 0.14)
-	arm_root.rotation_degrees = Vector3(40.0, 12.0, 0.0)
+	arm_root.rotation_degrees = Vector3(36.0, 10.0, 0.0)
 	model_root.add_child(arm_root)
 
-	# 1. Continuous Tapered Sleeve (extending off-screen)
-	var sleeve = MeshInstance3D.new()
-	var s_box = BoxMesh.new()
-	s_box.size = Vector3(0.088, 0.088, 0.52)
-	sleeve.mesh = s_box
-	sleeve.material_override = sleeve_mat
-	sleeve.position = Vector3(0.0, 0.0, -0.06)
-	sleeve.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	arm_root.add_child(sleeve)
+	var arm_scene = load("res://models/first_person_arm.glb")
+	if arm_scene:
+		var arm_inst = arm_scene.instantiate()
+		arm_inst.name = "FirstPersonArmMesh"
+		arm_inst.scale = Vector3(1.15, 1.15, 1.15)
+		arm_inst.position = Vector3(0.0, 0.0, -0.34)
+		arm_root.add_child(arm_inst)
+	else:
+		# Fallback arm
+		var sleeve = MeshInstance3D.new()
+		var s_box = BoxMesh.new()
+		s_box.size = Vector3(0.075, 0.075, 0.45)
+		sleeve.mesh = s_box
+		sleeve.material_override = sleeve_mat_clean
+		sleeve.position = Vector3(0.0, 0.0, -0.10)
+		arm_root.add_child(sleeve)
 
-	# 2. Leather Wrist Cuff
-	var cuff = MeshInstance3D.new()
-	var c_box = BoxMesh.new()
-	c_box.size = Vector3(0.092, 0.092, 0.05)
-	cuff.mesh = c_box
-	cuff.material_override = glove_mat
-	cuff.position = Vector3(0.0, 0.0, -0.32)
-	cuff.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	arm_root.add_child(cuff)
-
-	# 3. Gloved Hand (Palm + Curled Fingers)
-	var hand = MeshInstance3D.new()
-	var h_box = BoxMesh.new()
-	h_box.size = Vector3(0.065, 0.060, 0.075)
-	hand.mesh = h_box
-	hand.material_override = glove_mat
-	hand.position = Vector3(0.0, 0.0, -0.36)
-	hand.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	arm_root.add_child(hand)
-
-	# Fingers wrapping securely around haft
-	var fingers = MeshInstance3D.new()
-	var f_box = BoxMesh.new()
-	f_box.size = Vector3(0.038, 0.065, 0.065)
-	fingers.mesh = f_box
-	fingers.material_override = glove_mat
-	fingers.position = Vector3(-0.024, -0.015, -0.36)
-	fingers.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	arm_root.add_child(fingers)
-
-	# Thumb
-	var thumb = MeshInstance3D.new()
-	var th_box = BoxMesh.new()
-	th_box.size = Vector3(0.026, 0.032, 0.036)
-	thumb.mesh = th_box
-	thumb.material_override = glove_mat
-	thumb.position = Vector3(0.022, 0.022, -0.34)
-	thumb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	arm_root.add_child(thumb)
+		var hand = MeshInstance3D.new()
+		var h_box = BoxMesh.new()
+		h_box.size = Vector3(0.055, 0.050, 0.065)
+		hand.mesh = h_box
+		hand.material_override = glove_mat_clean
+		hand.position = Vector3(0.0, 0.0, -0.34)
+		arm_root.add_child(hand)
 
 	# 4. Pickaxe Haft & Head Assembly held firmly inside hand
 	var tool_data = build_tool_mesh(tier)
 	var tool_mount = tool_data["root"]
-	tool_mount.position = Vector3(0.0, 0.0, -0.36)
+	tool_mount.position = Vector3(0.0, 0.0, -0.34)
 	tool_mount.rotation_degrees = Vector3(-40.0, -12.0, 0.0)
 	arm_root.add_child(tool_mount)
 
@@ -334,7 +317,7 @@ static func build_tool_mesh(_p_tier: int = 1) -> Dictionary:
 	}
 
 func start_swing() -> bool:
-	if not is_active or is_swinging:
+	if not is_active or is_swinging or swing_cooldown_timer > 0.0:
 		return false
 	is_swinging = true
 	swing_timer = 0.0
@@ -353,8 +336,12 @@ func _process(delta: float) -> void:
 	if not is_active:
 		return
 
-	# Continuous mining: if LMB is held, swing repeatedly
-	if not is_swinging and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	if swing_cooldown_timer > 0.0:
+		swing_cooldown_timer -= delta
+
+	# Continuous / rapid click mining
+	var is_click = (Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) or (InputMap.has_action("attack") and (Input.is_action_pressed("attack") or Input.is_action_just_pressed("attack"))))
+	if not is_swinging and swing_cooldown_timer <= 0.0 and is_click and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		start_swing()
 
 	var eff_pos = get_effective_natural_pos()
@@ -417,6 +404,7 @@ func _process_swing(delta: float) -> void:
 	if swing_timer >= 1.0:
 		is_swinging = false
 		swing_timer = 0.0
+		swing_cooldown_timer = SWING_COOLDOWN_DURATION
 		position = eff_pos
 		rotation_degrees = eff_rot
 

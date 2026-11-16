@@ -61,7 +61,7 @@ func _build_ui() -> void:
 	outer_vbox.add_theme_constant_override("separation", 10)
 	outer_mount_panel.add_child(outer_vbox)
 
-	var header_banner = OrnateUIClass.create_header_banner("АРХИВНЫЙ МАТЕРИАЛ // ЭКСПЕДИЦИОННОЕ ДЕЛО", 36)
+	var header_banner = OrnateUIClass.create_header_banner("АРХИВНЫЙ МАТЕРИАЛ — ЭКСПЕДИЦИОННОЕ ДЕЛО", 36)
 	outer_vbox.add_child(header_banner)
 
 	# Inner weathered parchment panel
@@ -90,7 +90,7 @@ func _build_ui() -> void:
 	vbox.add_child(title_label)
 
 	date_label = Label.new()
-	date_label.text = "1894 г. // ЗАБОЙ 4-Б"
+	date_label.text = "1894 г. — ЗАБОЙ 4-Б"
 	date_label.add_theme_color_override("font_color", Color(0.42, 0.35, 0.28))
 	date_label.add_theme_font_size_override("font_size", 12)
 	vbox.add_child(date_label)
@@ -116,7 +116,7 @@ func _build_ui() -> void:
 	close_btn.text = "ЗАКРЫТЬ ДОКУМЕНТ [E / ESC]"
 	close_btn.custom_minimum_size = Vector2(240, 34)
 	OrnateUIClass.style_button(close_btn, 11)
-	close_btn.pressed.connect(close_document)
+	close_btn.pressed.connect(hide_document)
 	footer_hbox.add_child(close_btn)
 
 	outer_vbox.add_child(footer_hbox)

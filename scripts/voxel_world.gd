@@ -482,14 +482,8 @@ func _load_chunk_data(cx: int, cz: int) -> PackedByteArray:
 			data[_voxel_index(lx, 2, lz)] = BlockType.BEDROCK
 			data[_voxel_index(lx, 3, lz)] = BlockType.BEDROCK
 
-			var is_boreas = (abs(gx) <= 6 and abs(gz) <= 6)
-
 			for ly in range(4, CHUNK_HEIGHT):
 				var gy = CHUNK_MIN_Y + ly
-
-				# Above surface ground is AIR (except Station Boreas)
-				if gy >= surf_h_int and not is_boreas:
-					continue
 
 				var b_type = BlockType.AIR
 				var block_coord = Vector3i(gx, gy, gz)
@@ -527,34 +521,12 @@ func _determine_voxel_biome(gx: int, gy: int, gz: int, surf_h: float, moist: flo
 	if gy <= CHUNK_MIN_Y + 3:
 		return BlockType.BEDROCK
 
-	# 2. Surface Cryosphere & Glacial Permafrost (Y >= 44 to 64)
-	if gy >= int(surf_h):
-		# Station Boreas at (gx, gz) near (0, 0)
-		if abs(gx) <= 6 and abs(gz) <= 6:
-			if gy == 50:
-				return BlockType.WOOD_PLANKS
-			elif gy >= 51 and gy <= 54:
-				if (abs(gx) == 5 or abs(gz) == 5) and not (gx == 0 and gz == 5):
-					return BlockType.HEWN_TIMBER
-				if (gx == 3 and gz == 3) or (gx == 3 and gz == 2):
-					return BlockType.CARGO_CRATE
-				return BlockType.AIR
-			elif gy == 55 and abs(gx) <= 5 and abs(gz) <= 5:
-				return BlockType.WOOD_PLANKS
-			elif gy >= 56 and gy <= 62 and gx == 0 and gz == 0:
-				return BlockType.SLATE_BRICK if gy < 62 else BlockType.TORCH
-		# Surface Bare Herobrine Trees (Stripped trunks standing in the foggy expanse)
-		if gy >= int(surf_h) and gy <= int(surf_h) + 5:
-			if (abs(gx) % 14 == 3) and (abs(gz) % 15 == 5) and (abs(gx) > 8 or abs(gz) > 8):
-				return BlockType.HEWN_TIMBER
-		return BlockType.AIR
-
-	# Surface Crust & Ice Sheet (gy between 44 and surf_h)
+	# 2. Glacial Cryosphere & Ice Sheet Strata (Y >= 44 to 64)
 	if gy >= 44:
 		var sn = strata_noise.get_noise_3d(gx, gy, gz)
-		if gy >= int(surf_h) - 2 or sn > 0.25:
+		if sn > 0.18:
 			return BlockType.PERMAFROST_ICE
-		elif sn < -0.30:
+		elif sn < -0.22:
 			return BlockType.CALCITE
 		return BlockType.STONE
 
@@ -1272,84 +1244,84 @@ func _determine_voxel_biome(gx: int, gy: int, gz: int, surf_h: float, moist: flo
 func get_biome_name_at(gx: int, gy: int, gz: int) -> String:
 	# Check landmark realms first for seamless HUD immersion
 	if gx < -20 and gx >= -56 and gz > 20 and gz <= 56 and gy >= -48 and gy <= -25:
-		return "STRATUM IV // THE ECHOING OSSUARY"
+		return "STRATUM IV — THE ECHOING OSSUARY"
 	elif gx > 20 and gx <= 56 and gz < -20 and gz >= -56 and gy >= -58 and gy <= -33:
-		return "STRATUM V // THE VOID FISSURE & CRYSTALLINE ABYSS"
+		return "STRATUM V — THE VOID FISSURE & CRYSTALLINE ABYSS"
 
 	if gy >= 1 and gy <= 30:
 		if gz >= 20 and gz <= 65 and abs(gx) <= 22:
-			return "STRATUM III // FUNGAL MYCENA HOLLOWS"
+			return "STRATUM III — FUNGAL MYCENA HOLLOWS"
 		elif gz <= -20 and gz >= -65 and abs(gx) <= 22:
-			return "STRATUM III // AMETHYST & CALCITE POCKET"
+			return "STRATUM III — AMETHYST & CALCITE POCKET"
 		elif gx <= -20 and gx >= -65 and abs(gz) <= 22:
-			return "STRATUM III // PRECURSOR SANCTUARY & CONDUITS"
+			return "STRATUM III — PRECURSOR SANCTUARY & CONDUITS"
 		elif gx >= 60 and gx <= 105 and abs(gz) <= 22:
-			return "STRATUM V // MOLTEN MAGMA RESERVOIR"
+			return "STRATUM V — MOLTEN MAGMA RESERVOIR"
 		elif abs(gx) <= 8 and abs(gz) <= 8:
-			return "STRATUM III // THE HOLLOW CORE BASIN"
+			return "STRATUM III — THE HOLLOW CORE BASIN"
 
 	if gy >= 45:
-		return "SURFACE BOREAS // PERMAFROST TUNDRA"
+		return "SURFACE BOREAS — PERMAFROST TUNDRA"
 	elif gy >= 34:
-		return "STRATUM I // GLACIAL CRYOSPHERE SPIRES"
+		return "STRATUM I — GLACIAL CRYOSPHERE SPIRES"
 	elif gy >= 22:
 		var temp = biome_temperature_noise.get_noise_2d(gx, gz) if biome_temperature_noise else 0.0
 		var ruin = biome_ruins_noise.get_noise_2d(gx, gz) if biome_ruins_noise else 0.0
 		var crystal = biome_crystal_noise.get_noise_2d(gx, gz) if biome_crystal_noise else 0.0
 		if ruin > 0.48:
-			return "STRATUM II // PRECURSOR SKY VAULT"
+			return "STRATUM II — PRECURSOR SKY VAULT"
 		elif crystal > 0.35:
-			return "STRATUM II // BOREAL CALCITE CAVERNS"
+			return "STRATUM II — BOREAL CALCITE CAVERNS"
 		elif temp < -0.30:
-			return "STRATUM II // SUBGLACIAL PERMAFROST CHASM"
-		return "STRATUM II // CHILLED KARST TUNNELS"
+			return "STRATUM II — SUBGLACIAL PERMAFROST CHASM"
+		return "STRATUM II — CHILLED KARST TUNNELS"
 	elif gy <= -55:
-		return "FOUNDATION // BEDROCK ABYSSAL VOID"
+		return "FOUNDATION — BEDROCK ABYSSAL VOID"
 	elif gy <= -29:
 		var temp = biome_temperature_noise.get_noise_2d(gx, gz) if biome_temperature_noise else 0.0
 		var sn = strata_noise.get_noise_3d(gx, gy, gz) if strata_noise else 0.0
 		if temp > 0.35:
-			return "STRATUM V // SULFUR FUMAROLE CALDERA"
+			return "STRATUM V — SULFUR FUMAROLE CALDERA"
 		elif sn > 0.28:
-			return "STRATUM V // MOLTEN MAGMA RESERVOIR"
+			return "STRATUM V — MOLTEN MAGMA RESERVOIR"
 		elif sn < -0.40:
-			return "STRATUM V // ABYSSAL BASALTIC MANTLE"
-		return "STRATUM V // VOLCANIC UPWELLING SECTOR"
+			return "STRATUM V — ABYSSAL BASALTIC MANTLE"
+		return "STRATUM V — VOLCANIC UPWELLING SECTOR"
 	elif gy <= 0:
 		var ruin = biome_ruins_noise.get_noise_2d(gx, gz) if biome_ruins_noise else 0.0
 		var crystal = biome_crystal_noise.get_noise_2d(gx, gz) if biome_crystal_noise else 0.0
 		var on = ore_noise.get_noise_3d(gx, gy, gz) if ore_noise else 0.0
 		if ruin > 0.50:
-			return "STRATUM IV // PRECURSOR ABYSSAL CORE RUINS"
+			return "STRATUM IV — PRECURSOR ABYSSAL CORE RUINS"
 		elif crystal > 0.40:
-			return "STRATUM IV // DEEP AMETHYST GEODE CAVITY"
+			return "STRATUM IV — DEEP AMETHYST GEODE CAVITY"
 		elif on > 0.50:
-			return "STRATUM IV // BIOLUMINESCENT PHOSPHOR GROTTO"
+			return "STRATUM IV — BIOLUMINESCENT PHOSPHOR GROTTO"
 		elif on > 0.68:
-			return "STRATUM IV // AURIFEROUS QUARTZ FAULTLINE"
-		return "STRATUM IV // BASALTIC DEEPSLATE TRENCH"
+			return "STRATUM IV — AURIFEROUS QUARTZ FAULTLINE"
+		return "STRATUM IV — BASALTIC DEEPSLATE TRENCH"
 	else:
 		var moist = biome_moisture_noise.get_noise_2d(gx, gz) if biome_moisture_noise else 0.0
 		var ruin = biome_ruins_noise.get_noise_2d(gx, gz) if biome_ruins_noise else 0.0
 		var crystal = biome_crystal_noise.get_noise_2d(gx, gz) if biome_crystal_noise else 0.0
 		var sn = strata_noise.get_noise_3d(gx, gy, gz) if strata_noise else 0.0
 		if ruin > 0.52:
-			return "STRATUM III // PRECURSOR SANCTUARY & CONDUITS"
+			return "STRATUM III — PRECURSOR SANCTUARY & CONDUITS"
 		elif crystal > 0.42:
-			return "STRATUM III // AMETHYST & CALCITE POCKET"
+			return "STRATUM III — AMETHYST & CALCITE POCKET"
 		elif moist > 0.32:
 			if sn > 0.40:
-				return "STRATUM III // LICHEN ROOT GROVE"
-			return "STRATUM III // FUNGAL MYCENA HOLLOWS"
+				return "STRATUM III — LICHEN ROOT GROVE"
+			return "STRATUM III — FUNGAL MYCENA HOLLOWS"
 		elif sn > 0.44:
-			return "STRATUM III // GRANITE FAULT RIDGE"
+			return "STRATUM III — GRANITE FAULT RIDGE"
 		elif sn > 0.20:
-			return "STRATUM III // DIORITE STRATA TERRACE"
+			return "STRATUM III — DIORITE STRATA TERRACE"
 		elif sn < -0.45:
-			return "STRATUM III // ANDESITE SHALE LEDGE"
+			return "STRATUM III — ANDESITE SHALE LEDGE"
 		elif sn < -0.22:
-			return "STRATUM III // CAVERN GRAVEL OUTWASH"
-		return "STRATUM III // THE HOLLOW CORE BASIN"
+			return "STRATUM III — CAVERN GRAVEL OUTWASH"
+		return "STRATUM III — THE HOLLOW CORE BASIN"
 
 # --- Voxel Modification & Query API ---
 
@@ -1449,11 +1421,7 @@ func mine_block(coord: Vector3i, _damage: float, _hit_point: Vector3, _hit_norma
 	if b_type == BlockType.AIR or b_type == BlockType.BEDROCK:
 		return false
 
-	if terrain_modifier and is_instance_valid(terrain_modifier):
-		var carved = terrain_modifier.mine_cavity(_hit_point, _hit_normal, 0.85, not is_hand_mining)
-		if carved.size() > 0:
-			return true
-
+	# Single-block precision mining: target exactly one block
 	set_block(coord.x, coord.y, coord.z, BlockType.AIR, true)
 
 	if b_type == BlockType.CARGO_CRATE:
@@ -1813,3 +1781,8 @@ func _rebuild_chunk_mesh(cx: int, cz: int) -> void:
 		chunks.get(Vector2i(cx + 1, cz), null)
 	)
 	_apply_chunk_mesh(cx, cz, res.arrays, res.empty)
+
+## Rebuilds all active chunk meshes immediately (e.g. after level carving)
+func remesh_all_active_chunks() -> void:
+	for key in chunks.keys():
+		_rebuild_chunk_mesh(key.x, key.y)

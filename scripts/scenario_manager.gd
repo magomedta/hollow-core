@@ -59,8 +59,8 @@ func _spawn_starting_props() -> void:
 	var pickaxe_pos = Vector3(-3.8, 11.4, 2.0)
 
 	if player_ref and player_ref.global_position.y > 40.0:
-		lantern_pos = Vector3(2.2, 57.2, 0.5)
-		pickaxe_pos = Vector3(-1.8, 57.2, 1.8)
+		lantern_pos = Vector3(1.5, 57.06, 0.4)
+		pickaxe_pos = Vector3(1.2, 57.06, -0.6)
 
 	# 1. Expedition Brass Lantern Prop (InteractiveProp)
 	if lantern_prop == null:
@@ -94,7 +94,7 @@ func _spawn_starting_props() -> void:
 		pickaxe_prop.item_grant_id = "pickaxe"
 		pickaxe_prop.narrative_flag_on_collect = "pickaxe_recovered"
 		pickaxe_prop.position = pickaxe_pos
-		pickaxe_prop.rotation_degrees = Vector3(25.0, 75.0, -15.0)
+		pickaxe_prop.rotation_degrees = Vector3(0.0, 35.0, 90.0)
 
 		# Build exact same pickaxe model as held in player's hands!
 		var tool_data = PickaxeClass.build_tool_mesh(1)

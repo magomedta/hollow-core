@@ -29,7 +29,7 @@ var lantern_body_root: Node3D
 var arm_root: Node3D
 
 # Natural first-person viewport position in right hand
-var natural_position: Vector3 = Vector3(0.24, -0.18, -0.42)
+var natural_position: Vector3 = Vector3(0.22, -0.06, -0.38)
 var natural_rotation: Vector3 = Vector3(-4.0, 12.0, -2.0)
 var current_sway_rot: Vector3 = Vector3.ZERO
 var target_sway_rot: Vector3 = Vector3.ZERO
@@ -91,18 +91,21 @@ func _construct_lantern_hierarchy() -> void:
 	flame_shader_mat.shader = load("res://shaders/lantern_flame.gdshader")
 
 	var sleeve_mat = StandardMaterial3D.new()
+	sleeve_mat.albedo_color = Color(0.20, 0.23, 0.26, 1.0) # Deep charcoal-slate expedition wool
 	sleeve_mat.albedo_texture = PixelTextureGenerator.get_sleeve_texture()
 	sleeve_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	sleeve_mat.uv1_triplanar = true
-	sleeve_mat.uv1_scale = Vector3(8.0, 8.0, 8.0)
-	sleeve_mat.roughness = 0.88
+	sleeve_mat.roughness = 0.90
+
+	var cuff_mat = StandardMaterial3D.new()
+	cuff_mat.albedo_color = Color(0.24, 0.17, 0.12, 1.0) # Dark leather wrist cuff
+	cuff_mat.roughness = 0.70
 
 	var glove_mat = StandardMaterial3D.new()
+	glove_mat.albedo_color = Color(0.48, 0.34, 0.22, 1.0) # Warm saddle brown speleology glove
 	glove_mat.albedo_texture = PixelTextureGenerator.get_glove_texture()
 	glove_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	glove_mat.uv1_triplanar = true
-	glove_mat.uv1_scale = Vector3(8.0, 8.0, 8.0)
-	glove_mat.roughness = 0.82
+	glove_mat.roughness = 0.65
+	glove_mat.metallic = 0.10
 
 	# 1. Octagonal Pedestal Base Plate
 	var base_plate = MeshInstance3D.new()
@@ -274,62 +277,37 @@ func _construct_lantern_hierarchy() -> void:
 	bail.scale = Vector3(1.0, 1.2, 0.5)
 	lantern_body_root.add_child(bail)
 
-	# 9. CONTINUOUS FIRST-PERSON EXPLORER ARM & LEATHER GLOVED HAND
+	# 9. AUTHENTIC LOW-POLY FIRST-PERSON EXPLORER ARM & LEATHER GLOVED HAND
 	arm_root = Node3D.new()
 	arm_root.name = "LanternArm"
-	arm_root.position = Vector3(0.015, 0.112, -0.01) # Anchored at suspension ring
-	arm_root.rotation_degrees = Vector3(32.0, -18.0, 0.0) # Angled down-right toward off-screen shoulder
+	arm_root.position = Vector3(0.015, -0.08, 0.02) # Anchored lower down
+	arm_root.rotation_degrees = Vector3(10.0, -8.0, 0.0)
 	lantern_body_root.add_child(arm_root)
 
-	# Continuous Forearm Sleeve (solidly extends off-screen through bottom-right viewport)
-	var sleeve = MeshInstance3D.new()
-	var s_box = BoxMesh.new()
-	s_box.size = Vector3(0.074, 0.074, 0.54)
-	sleeve.mesh = s_box
-	sleeve.material_override = sleeve_mat
-	sleeve.position = Vector3(0.0, 0.0, 0.30)
-	sleeve.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	arm_root.add_child(sleeve)
+	var arm_scene = load("res://models/first_person_arm.glb")
+	if arm_scene:
+		var arm_inst = arm_scene.instantiate()
+		arm_inst.name = "FirstPersonArmMesh"
+		arm_inst.rotation_degrees = Vector3(0.0, 180.0, 0.0)
+		arm_inst.scale = Vector3(1.2, 1.2, 1.2)
+		arm_inst.position = Vector3(0.0, -0.05, 0.0)
+		arm_root.add_child(arm_inst)
+	else:
+		# Fallback compact sleeve
+		var sleeve = MeshInstance3D.new()
+		var s_box = BoxMesh.new()
+		s_box.size = Vector3(0.065, 0.065, 0.45)
+		sleeve.mesh = s_box
+		sleeve.material_override = sleeve_mat
+		sleeve.position = Vector3(0.0, 0.0, 0.22)
+		arm_root.add_child(sleeve)
 
-	# Reinforced Leather Wrist Cuff
-	var cuff = MeshInstance3D.new()
-	var c_box = BoxMesh.new()
-	c_box.size = Vector3(0.078, 0.078, 0.045)
-	cuff.mesh = c_box
-	cuff.material_override = glove_mat
-	cuff.position = Vector3(0.0, 0.0, 0.05)
-	cuff.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	arm_root.add_child(cuff)
-
-	# Gloved Palm firmly holding the brass suspension ring
-	var hand = MeshInstance3D.new()
-	var h_box = BoxMesh.new()
-	h_box.size = Vector3(0.054, 0.050, 0.060)
-	hand.mesh = h_box
-	hand.material_override = glove_mat
-	hand.position = Vector3(0.0, 0.0, 0.0)
-	hand.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	arm_root.add_child(hand)
-
-	# Curled Fingers wrapped around the ring
-	var fingers = MeshInstance3D.new()
-	var f_box = BoxMesh.new()
-	f_box.size = Vector3(0.032, 0.038, 0.048)
-	fingers.mesh = f_box
-	fingers.material_override = glove_mat
-	fingers.position = Vector3(-0.018, -0.012, -0.01)
-	fingers.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	arm_root.add_child(fingers)
-
-	# Leather Thumb braced against top of ring
-	var thumb = MeshInstance3D.new()
-	var th_box = BoxMesh.new()
-	th_box.size = Vector3(0.020, 0.024, 0.032)
-	thumb.mesh = th_box
-	thumb.material_override = glove_mat
-	thumb.position = Vector3(0.018, 0.015, -0.01)
-	thumb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	arm_root.add_child(thumb)
+		var hand = MeshInstance3D.new()
+		var h_box = BoxMesh.new()
+		h_box.size = Vector3(0.048, 0.044, 0.055)
+		hand.mesh = h_box
+		hand.material_override = glove_mat
+		arm_root.add_child(hand)
 
 	# Disable self-shadow casting on all lantern body meshes to eliminate ugly shadow artifacts
 	_disable_mesh_shadows(lantern_body_root)

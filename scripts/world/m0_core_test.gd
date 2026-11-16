@@ -182,7 +182,7 @@ func _update_diagnostic_hud() -> void:
 	var mod_count = voxel_world.modified_voxels.size()
 	var echo_events = sound_memory_manager.ring_buffer.size()
 
-	var text = "[ HOLLOW CORE // M0 DIAGNOSTICS ]\n"
+	var text = "[ HOLLOW CORE — M0 DIAGNOSTICS ]\n"
 	text += "COORDS: X: %4.1f | Y: %4.1f | Z: %4.1f\n" % [pos.x, pos.y, pos.z]
 	text += "VOXEL : (%d, %d, %d)\n" % [v_coord.x, v_coord.y, v_coord.z]
 	text += "CHUNK : (%d, %d)\n" % [c_coord.x, c_coord.y]
